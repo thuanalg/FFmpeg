@@ -242,6 +242,7 @@ dshow_read_close(AVFormatContext *s)
     PacketListEntry *pktl;
 
     if (ctx->control) {
+        spllog(SPL_LOG_INFO, "IMediaControl_Stop");
         IMediaControl_Stop(ctx->control);
         IMediaControl_Release(ctx->control);
     }
@@ -576,6 +577,8 @@ dshow_cycle_devices(AVFormatContext *avctx, ICreateDevEnum *devenum,
                 device = NULL;  // copied into array, make sure not freed below
             }
             else {
+                spl_console_log("friendly_name: %s", friendly_name);
+                spllog(SPL_LOG_INFO, "friendly_name: %s", friendly_name);                 
                 av_log(avctx, AV_LOG_INFO, "\"%s\"", friendly_name);
                 if (nb_media_types > 0) {
                     const char* media_type = av_get_media_type_string(media_types[0]);
@@ -589,6 +592,8 @@ dshow_cycle_devices(AVFormatContext *avctx, ICreateDevEnum *devenum,
                     av_log(avctx, AV_LOG_INFO, " (none)");
                 }
                 av_log(avctx, AV_LOG_INFO, "\n");
+                spl_console_log("unique_name: %s", unique_name);
+                spllog(SPL_LOG_INFO, "unique_name: %s", unique_name);                   
                 av_log(avctx, AV_LOG_INFO, "  Alternative name \"%s\"\n", unique_name);
             }
         }
@@ -634,7 +639,7 @@ static int dshow_get_device_list(AVFormatContext *avctx, AVDeviceInfoList *devic
 
     if (!device_list)
         return AVERROR(EINVAL);
-
+    spl_console_log("----------------------------------CoInitializeEx");
     CoInitialize(0);
 
     r = CoCreateInstance(&CLSID_SystemDeviceEnum, NULL, CLSCTX_INPROC_SERVER,
@@ -1385,7 +1390,7 @@ dshow_open_device(AVFormatContext *avctx, ICreateDevEnum *devenum,
 
     ctx->device_filter [devtype] = device_filter;
     ctx->device_unique_name [devtype] = device_filter_unique_name;
-
+    spllog(SPL_LOG_INFO, "IGraphBuilder_AddFilter");
     r = IGraphBuilder_AddFilter(graph, device_filter, NULL);
     if (r != S_OK) {
         av_log(avctx, AV_LOG_ERROR, "Could not add device filter to graph.\n");
@@ -1447,7 +1452,7 @@ dshow_open_device(AVFormatContext *avctx, ICreateDevEnum *devenum,
             av_log(avctx, AV_LOG_INFO, "Video-");
         av_log(avctx, AV_LOG_INFO, "Capture filter saved successfully to file \"%s\".\n", filename);
     }
-
+    spllog(SPL_LOG_INFO, "IGraphBuilder_AddFilter");
     r = IGraphBuilder_AddFilter(graph, (IBaseFilter *) capture_filter,
                                 filter_name[devtype]);
     if (r != S_OK) {
@@ -1465,6 +1470,7 @@ dshow_open_device(AVFormatContext *avctx, ICreateDevEnum *devenum,
         av_log(avctx, AV_LOG_ERROR, "Could not create CaptureGraphBuilder2\n");
         goto error;
     }
+    spllog(SPL_LOG_INFO, "ICaptureGraphBuilder2_SetFiltergraph");
     r = ICaptureGraphBuilder2_SetFiltergraph(graph_builder2, graph);
     if (r != S_OK) {
         av_log(avctx, AV_LOG_ERROR, "Could not set graph for CaptureGraphBuilder2\n");
@@ -1687,7 +1693,8 @@ static int dshow_read_header(AVFormatContext *avctx)
     HANDLE proc;
     int ret = AVERROR(EIO);
     int r;
-
+    spl_console_log("----------------------------------CoInitialize");
+    spllog(SPL_LOG_INFO, "----------------------------------CoInitialize");
     CoInitialize(0);
 
     if (!ctx->list_devices && !parse_device_name(avctx)) {
@@ -1712,7 +1719,8 @@ static int dshow_read_header(AVFormatContext *avctx)
             goto error;
         }
     }
-
+    spl_console_log("----------------------------------CoCreateInstance");
+    spllog(SPL_LOG_INFO, "----------------------------------CoCreateInstance");
     r = CoCreateInstance(&CLSID_FilterGraph, NULL, CLSCTX_INPROC_SERVER,
                          &IID_IGraphBuilder, (void **) &graph);
     if (r != S_OK) {
@@ -1720,20 +1728,26 @@ static int dshow_read_header(AVFormatContext *avctx)
         goto error;
     }
     ctx->graph = graph;
-
+    spl_console_log("----------------------------------CoCreateInstance");
+    spllog(SPL_LOG_INFO, "----------------------------------CoCreateInstance");
     r = CoCreateInstance(&CLSID_SystemDeviceEnum, NULL, CLSCTX_INPROC_SERVER,
                          &IID_ICreateDevEnum, (void **) &devenum);
     if (r != S_OK) {
         av_log(avctx, AV_LOG_ERROR, "Could not enumerate system devices.\n");
         goto error;
     }
-
+    spl_console_log("----------------------------------list_devices: %d", 
+        ctx->list_devices);
+    spllog(SPL_LOG_INFO, "----------------------------------list_devices: %d", 
+        ctx->list_devices);
     if (ctx->list_devices) {
         dshow_cycle_devices(avctx, devenum, VideoDevice, VideoSourceDevice, NULL, NULL, NULL);
         dshow_cycle_devices(avctx, devenum, AudioDevice, AudioSourceDevice, NULL, NULL, NULL);
         ret = AVERROR_EXIT;
         goto error;
     }
+    spl_console_log("----------------------------------list_devices");
+    spllog(SPL_LOG_INFO, "----------------------------------list_devices");   
     if (ctx->list_options) {
         if (ctx->device_name[VideoDevice])
             if ((r = dshow_list_device_options(avctx, devenum, VideoDevice, VideoSourceDevice))) {
@@ -1814,7 +1828,7 @@ static int dshow_read_header(AVFormatContext *avctx)
         av_log(avctx, AV_LOG_ERROR, "Could not duplicate media event handle.\n");
         goto error;
     }
-
+    spllog(SPL_LOG_INFO, "IMediaControl_Run");
     r = IMediaControl_Run(control);
     if (r == S_FALSE) {
         OAFilterState pfs;
@@ -1862,7 +1876,7 @@ static int dshow_read_packet(AVFormatContext *s, AVPacket *pkt)
 {
     struct dshow_ctx *ctx = s->priv_data;
     PacketListEntry *pktl = NULL;
-
+    //spllog(SPL_LOG_INFO, "dshow_read_packet");
     while (!ctx->eof && !pktl) {
         WaitForSingleObject(ctx->mutex, INFINITE);
         pktl = ctx->pktl;
@@ -1883,6 +1897,7 @@ static int dshow_read_packet(AVFormatContext *s, AVPacket *pkt)
                 WaitForMultipleObjects(2, ctx->event, 0, INFINITE);
             }
         }
+        spllog(SPL_LOG_INFO, "while dshow_read_packet");
     }
 
     return ctx->eof ? AVERROR(EIO) : pkt->size;

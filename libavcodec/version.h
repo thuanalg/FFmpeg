@@ -18,7 +18,7 @@
 
 #ifndef AVCODEC_VERSION_H
 #define AVCODEC_VERSION_H
-
+#include <simplelog.h>
 /**
  * @file
  * @ingroup libavc

@@ -41,6 +41,7 @@
 #include <mftransform.h>
 
 #include "avcodec.h"
+#include "simplelog.h"
 
 // Windows N editions does not provide MediaFoundation by default.
 // So to avoid DLL loading error, MediaFoundation will be dynamically loaded

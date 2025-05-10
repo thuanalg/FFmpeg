@@ -18,6 +18,7 @@
 
 #include <float.h>
 #include <stdint.h>
+#include <simplelog.h>
 
 #include "ffmpeg.h"
 #include "ffmpeg_sched.h"
@@ -1770,7 +1771,10 @@ int ifile_open(const OptionsContext *o, const char *filename, Scheduler *sch)
         scan_all_pmts_set = 1;
     }
     /* open the input file with generic avformat function */
+    spl_console_log("---here test 01: %s", filename);
     err = avformat_open_input(&ic, filename, file_iformat, &o->g->format_opts);
+    spl_console_log("---here test 02");
+    spllog(SPL_LOG_INFO, "%s, err: %d.", __FILE__, (int)err);
     if (err < 0) {
         if (err != AVERROR_EXIT)
             av_log(d, AV_LOG_ERROR,

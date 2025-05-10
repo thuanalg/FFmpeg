@@ -165,7 +165,7 @@ STLIBOBJS += $(STLIBOBJS-yes)
 FFLIBS    := $($(NAME)_FFLIBS) $(FFLIBS-yes) $(FFLIBS)
 TESTPROGS += $(TESTPROGS-yes)
 
-LDLIBS       = $(FFLIBS:%=%$(BUILDSUF))
+LDLIBS       = $(FFLIBS:%=%$(BUILDSUF)) simplelog
 FFEXTRALIBS := $(LDLIBS:%=$(LD_LIB)) $(foreach lib,EXTRALIBS-$(NAME) $(FFLIBS:%=EXTRALIBS-%),$($(lib))) $(EXTRALIBS)
 
 OBJS      := $(sort $(OBJS:%=$(SUBDIR)%))

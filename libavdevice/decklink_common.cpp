@@ -58,6 +58,7 @@ static IDeckLinkIterator *decklink_create_iterator(AVFormatContext *avctx)
     IDeckLinkIterator *iter;
 
 #ifdef _WIN32
+    spl_console_log("----------------------------------CoInitializeEx");
     if (CoInitialize(NULL) < 0) {
         av_log(avctx, AV_LOG_ERROR, "COM initialization failed.\n");
         return NULL;

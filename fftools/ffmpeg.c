@@ -81,6 +81,7 @@
 #include "ffmpeg.h"
 #include "ffmpeg_sched.h"
 #include "ffmpeg_utils.h"
+#include "simplelog.h"
 
 const char program_name[] = "ffmpeg";
 const int program_birth_year = 2000;
@@ -955,9 +956,17 @@ static int64_t getmaxrss(void)
 
 int main(int argc, char **argv)
 {
+	int ret = 0;
+	ret = spl_init_log("simplelog.cfg");
+	if(ret) {
+		spl_console_log("spl_init_log, ret: %d..", ret);
+		return 1;
+	}
+	spllog(SPL_LOG_INFO, "1. Initial here, the first important chain.");
+	spl_sleep( 1);
     Scheduler *sch = NULL;
 
-    int ret;
+    //int ret;
     BenchmarkTimeStamps ti;
 
     init_dynload();
@@ -1021,9 +1030,13 @@ finish:
     ffmpeg_cleanup(ret);
 
     sch_free(&sch);
+<<<<<<< HEAD
+	spl_finish_log();
+=======
 
     av_log(NULL, AV_LOG_VERBOSE, "\n");
     av_log(NULL, AV_LOG_VERBOSE, "Exiting with exit code %d\n", ret);
 
+>>>>>>> 4e5523c98597a417eb43555933b1075d18ec5f8b
     return ret;
 }

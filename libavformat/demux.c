@@ -49,6 +49,7 @@
 #include "id3v2.h"
 #include "internal.h"
 #include "url.h"
+#include "simplelog.h"
 
 static int64_t wrap_timestamp(const AVStream *st, int64_t timestamp)
 {
@@ -223,7 +224,9 @@ int avformat_open_input(AVFormatContext **ps, const char *filename,
     AVDictionary *tmp = NULL;
     ID3v2ExtraMeta *id3v2_extra_meta = NULL;
     int ret = 0;
-
+    //return -1;
+    spl_console_log("--------------------------");
+    spllog(SPL_LOG_INFO, "Get list name of devices.");
     if (!s && !(s = avformat_alloc_context()))
         return AVERROR(ENOMEM);
     fci = ff_fc_internal(s);
@@ -260,7 +263,7 @@ int avformat_open_input(AVFormatContext **ps, const char *filename,
             goto fail;
         }
     }
-
+    spl_console_log("--------------------------");
     if (!s->protocol_blacklist && s->pb && s->pb->protocol_blacklist) {
         s->protocol_blacklist = av_strdup(s->pb->protocol_blacklist);
         if (!s->protocol_blacklist) {
@@ -268,7 +271,7 @@ int avformat_open_input(AVFormatContext **ps, const char *filename,
             goto fail;
         }
     }
-
+    spl_console_log("--------------------------");
     if (s->format_whitelist && av_match_list(s->iformat->name, s->format_whitelist, ',') <= 0) {
         av_log(s, AV_LOG_ERROR, "Format not on whitelist \'%s\'\n", s->format_whitelist);
         ret = AVERROR(EINVAL);
@@ -286,7 +289,7 @@ int avformat_open_input(AVFormatContext **ps, const char *filename,
     }
 
     s->duration = s->start_time = AV_NOPTS_VALUE;
-
+    spl_console_log("--------------------------");
     /* Allocate private data. */
     if (ffifmt(s->iformat)->priv_data_size > 0) {
         if (!(s->priv_data = av_mallocz(ffifmt(s->iformat)->priv_data_size))) {
@@ -300,18 +303,19 @@ int avformat_open_input(AVFormatContext **ps, const char *filename,
                 goto fail;
         }
     }
-
+    spl_console_log("--------------------------");
     /* e.g. AVFMT_NOFILE formats will not have an AVIOContext */
     if (s->pb)
         ff_id3v2_read_dict(s->pb, &si->id3v2_meta, ID3v2_DEFAULT_MAGIC, &id3v2_extra_meta);
-
+    spl_console_log("--------------------------");
     if (ffifmt(s->iformat)->read_header)
         if ((ret = ffifmt(s->iformat)->read_header(s)) < 0) {
             if (ffifmt(s->iformat)->flags_internal & FF_INFMT_FLAG_INIT_CLEANUP)
                 goto close;
+            spl_console_log("--------------------------");
             goto fail;
         }
-
+    spl_console_log("--------------------------");
     if (!s->metadata) {
         s->metadata    = si->id3v2_meta;
         si->id3v2_meta = NULL;
@@ -319,7 +323,7 @@ int avformat_open_input(AVFormatContext **ps, const char *filename,
         av_log(s, AV_LOG_WARNING, "Discarding ID3 tags because more suitable tags were found.\n");
         av_dict_free(&si->id3v2_meta);
     }
-
+    spl_console_log("--------------------------");
     if (id3v2_extra_meta) {
         if (!strcmp(s->iformat->name, "mp3") || !strcmp(s->iformat->name, "aac") ||
             !strcmp(s->iformat->name, "tta") || !strcmp(s->iformat->name, "wav")) {
@@ -340,21 +344,24 @@ int avformat_open_input(AVFormatContext **ps, const char *filename,
     if (s->pb && !si->data_offset)
         si->data_offset = avio_tell(s->pb);
 
-    fci->raw_packet_buffer_size = 0;
+    si->raw_packet_buffer_size = 0;
+    spl_console_log("--------------------------");
 
     update_stream_avctx(s);
-
+    spl_console_log("--------------------------");
     if (options) {
         av_dict_free(options);
         *options = tmp;
     }
     *ps = s;
     return 0;
-
+    spl_console_log("--------------------------");
 close:
+    spl_console_log("close --------------------------");
     if (ffifmt(s->iformat)->read_close)
         ffifmt(s->iformat)->read_close(s);
 fail:
+    spl_console_log("fail --------------------------");
     ff_id3v2_free_extra_meta(&id3v2_extra_meta);
     av_dict_free(&tmp);
     if (s->pb && !(s->flags & AVFMT_FLAG_CUSTOM_IO))
@@ -1545,7 +1552,7 @@ int av_read_frame(AVFormatContext *s, AVPacket *pkt)
 
     for (;;) {
         PacketListEntry *pktl = si->packet_buffer.head;
-
+        spllog(SPL_LOG_INFO, "--");
         if (pktl) {
             AVPacket *next_pkt = &pktl->pkt;
 

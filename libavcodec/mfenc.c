@@ -1181,7 +1181,8 @@ static int mf_load_library(AVCodecContext *avctx)
         return AVERROR_UNKNOWN;
     }
 #endif
-
+    spl_console_log("What is it here?");
+    spllog(SPL_LOG_INFO, "check media win32 APIS.");
     LOAD_MF_FUNCTION(c, MFStartup);
     LOAD_MF_FUNCTION(c, MFShutdown);
     LOAD_MF_FUNCTION(c, MFCreateAlignedMemoryBuffer);
@@ -1196,7 +1197,8 @@ static int mf_load_library(AVCodecContext *avctx)
 static int mf_close(AVCodecContext *avctx)
 {
     MFContext *c = avctx->priv_data;
-
+    spl_console_log("What is it here?");
+    spllog(SPL_LOG_INFO, "check media win32 APIS.");
     if (c->codec_api)
         ICodecAPI_Release(c->codec_api);
 

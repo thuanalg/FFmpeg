@@ -34,6 +34,7 @@
 #include <windows.h>
 // windows.h needs to be included before vfw.h
 #include <vfw.h>
+#include <simplelog.h>
 
 #include "avdevice.h"
 
@@ -263,6 +264,7 @@ static int vfw_read_header(AVFormatContext *s)
         for (devnum = 0; devnum <= 9; devnum++) {
             char driver_name[256];
             char driver_ver[256];
+            /*20240913, thuannt*/
             ret = capGetDriverDescription(devnum,
                                           driver_name, sizeof(driver_name),
                                           driver_ver, sizeof(driver_ver));
@@ -270,11 +272,16 @@ static int vfw_read_header(AVFormatContext *s)
                 av_log(s, AV_LOG_INFO, "Driver %d\n", devnum);
                 av_log(s, AV_LOG_INFO, " %s\n", driver_name);
                 av_log(s, AV_LOG_INFO, " %s\n", driver_ver);
+                spllog(SPL_LOG_INFO, "Driver %d, name: %s, driver_ver: %s.",
+                    devnum, driver_name, driver_ver);
+            } 
+            else {
+                spllog(SPL_LOG_ERROR, "capGetDriverDescription,,, ret: %d.", ret);
             }
         }
         return AVERROR(EIO);
     }
-
+    spllog(SPL_LOG_ERROR, "capCreateCaptureWindow");
     ctx->hwnd = capCreateCaptureWindow(NULL, 0, 0, 0, 0, 0, HWND_MESSAGE, 0);
     if(!ctx->hwnd) {
         av_log(s, AV_LOG_ERROR, "Could not create capture window.\n");

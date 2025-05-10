@@ -521,7 +521,8 @@ const CLSID *ff_codec_to_mf_subtype(enum AVCodecID codec)
 static int init_com_mf(void *log, MFFunctions *f)
 {
     HRESULT hr;
-
+    spllog(SPL_LOG_INFO, "CoInitializeEx");
+    spl_console_log("----------------------------------CoInitializeEx");
     hr = CoInitializeEx(NULL, COINIT_MULTITHREADED);
     if (hr == RPC_E_CHANGED_MODE) {
         av_log(log, AV_LOG_ERROR, "COM must not be in STA mode\n");
@@ -530,7 +531,7 @@ static int init_com_mf(void *log, MFFunctions *f)
         av_log(log, AV_LOG_ERROR, "could not initialize COM\n");
         return AVERROR(ENOSYS);
     }
-
+    spllog(SPL_LOG_INFO, "MFStartup");
     hr = f->MFStartup(MF_VERSION, MFSTARTUP_FULL);
     if (FAILED(hr)) {
         av_log(log, AV_LOG_ERROR, "could not initialize MediaFoundation\n");
