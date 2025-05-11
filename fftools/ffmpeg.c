@@ -1030,13 +1030,11 @@ finish:
     ffmpeg_cleanup(ret);
 
     sch_free(&sch);
-<<<<<<< HEAD
-	spl_finish_log();
-=======
+
 
     av_log(NULL, AV_LOG_VERBOSE, "\n");
     av_log(NULL, AV_LOG_VERBOSE, "Exiting with exit code %d\n", ret);
 
->>>>>>> 4e5523c98597a417eb43555933b1075d18ec5f8b
+	spl_finish_log();
     return ret;
 }
