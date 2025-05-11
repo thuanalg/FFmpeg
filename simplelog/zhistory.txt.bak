@@ -82,4 +82,4 @@
 ./configure --prefix=/mingw64 --target-os=mingw32 --arch=x86_64 --enable-shared --disable-static --enable-gpl --enable-version3
 ./configure --prefix=/mingw32 --target-os=mingw32 --arch=i686 --enable-shared --disable-static --enable-gpl --enable-version3
 
-./configure --prefix=/mingw32 --target-os=mingw32 --arch=i686 --enable-shared --disable-static --enable-gpl --enable-version3 --enable-libx264 > z.cfg.txt 2>&1
+./configure --prefix=/mingw32 --target-os=mingw32 --arch=i686 --enable-shared --disable-static --enable-gpl --enable-version3 --enable-x264
