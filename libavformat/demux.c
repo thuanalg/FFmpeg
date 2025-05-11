@@ -344,7 +344,7 @@ int avformat_open_input(AVFormatContext **ps, const char *filename,
     if (s->pb && !si->data_offset)
         si->data_offset = avio_tell(s->pb);
 
-    si->raw_packet_buffer_size = 0;
+
     spl_console_log("--------------------------");
 
     update_stream_avctx(s);
