@@ -425,7 +425,7 @@ spl_set_off(int isoff)
 		}
 #endif
 #ifdef SPL_SHOW_CONSOLE
-		spl_console_log("------- errCode: %d\n", (int)errCode);
+		spl_console_log("------- errCode hdfjhdjf: %d\n", (int)errCode);
 #endif
 	}
 	return ret;

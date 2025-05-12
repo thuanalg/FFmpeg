@@ -957,11 +957,16 @@ static int64_t getmaxrss(void)
 int main(int argc, char **argv)
 {
 	int ret = 0;
-	ret = spl_init_log("simplelog.cfg");
+	SPL_INPUT_ARG input = {0};
+	fprintf(stdout, "-------------------\n");
+	spl_console_log("spl_init_log new, ret: %d..", ret);
+	snprintf(input.folder, 1000,"%s", "simplelog.cfg");
+	ret = spl_init_log_ext(&input);
 	if(ret) {
-		spl_console_log("spl_init_log, ret: %d..", ret);
+		spl_console_log("spl_init_log new, ret: %d..", ret);
 		return 1;
 	}
+	spl_console_log("spl_init_log new, ret: %d..", ret);
 	spllog(SPL_LOG_INFO, "1. Initial here, the first important chain.");
 	spl_sleep( 1);
     Scheduler *sch = NULL;

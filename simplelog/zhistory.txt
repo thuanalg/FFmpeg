@@ -86,3 +86,8 @@
 
 make > zmake.txt 2>&1
 make >> zmake.txt 2>&1
+
+How to add h265 to: ./configure --prefix=/mingw32 --target-os=mingw32 --arch=i686 --enable-shared --disable-static --enable-gpl --enable-version3 --enable-libx264
+How to add h265 to: ./configure --prefix=/mingw32 --target-os=mingw32 --arch=i686 --enable-shared --disable-static --enable-gpl --enable-version3 --enable-libx264 --enable-libx265
+
+pacman -S mingw-w64-i686-x265 mingw-w64-i686-pkg-config
