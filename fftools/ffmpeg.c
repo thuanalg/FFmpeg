@@ -24,7 +24,7 @@
  */
 
 #include "config.h"
-
+#include <simplelog.h>
 #include <errno.h>
 #include <limits.h>
 #include <stdatomic.h>
@@ -963,10 +963,19 @@ static int64_t getmaxrss(void)
 
 int main(int argc, char **argv)
 {
+    int ret = 0;
     Scheduler *sch = NULL;
+    BenchmarkTimeStamps ti;  
 
-    int ret;
-    BenchmarkTimeStamps ti;
+    SPL_INPUT_ARG input = {0};
+    
+    snprintf(input.folder, 32, "%s", "z.cfg");
+    ret  = spl_init_log_ext(&input);
+    if(ret) {
+        fprintf(stdout, "\nCannot init simplelog.\n");
+        return 1;
+    }
+
 
     init_dynload();
 
@@ -1032,6 +1041,6 @@ finish:
 
     av_log(NULL, AV_LOG_VERBOSE, "\n");
     av_log(NULL, AV_LOG_VERBOSE, "Exiting with exit code %d\n", ret);
-
+    spl_finish_log();
     return ret;
 }

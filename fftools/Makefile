@@ -11,6 +11,10 @@ ALLAVPROGS_G = $(AVBASENAMES:%=%$(PROGSSUF)_g$(EXESUF))
 
 include $(SRC_PATH)/fftools/resources/Makefile
 
+EXTRALIBS-ffmpeg  += -lsimplelog
+EXTRALIBS-ffplay  += -lsimplelog
+EXTRALIBS-ffprobe += -lsimplelog
+
 OBJS-ffmpeg +=                  \
     fftools/ffmpeg_dec.o        \
     fftools/ffmpeg_demux.o      \
