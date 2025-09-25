@@ -1,12 +1,12 @@
 SRC=/D/x/algorithms_net/xffmpeg/src/FFWrapper.c
 INC=-I/D/x/algorithms_net/xffmpeg/src/
 INC+=-I/usr/local/include
-CFLAGS = -O2 -Wall -Wno-incompatible-pointer-types 
+CFLAGS = -O2 -Wall -Wno-incompatible-pointer-types -DEXPORT_DLL_API_FF_WRAPPER 
 LIBS=-L/usr/local/lib
-LIBS+= -lavcodec -lavdevice -lavutil -lavcodec -lavformat -lswscale -lsimplelog 
+LIBS+= -lavcodec -lavdevice -lavutil -lavformat -lswscale -lsimplelog -lswresample -lavfilter
 
 BSRC=/D/x/algorithms_net/xffmpeg/src/audio_video_record.c
-
+LIBTARGET=FFWrapper
 #-rw-r--r-- 1 DEll None   4741 Sep 25 16:18 avcodec-62.def
 #-rw-r--r-- 1 DEll None    453 Sep 25 16:18 avdevice-62.def
 #-rw-r--r-- 1 DEll None   1945 Sep 25 16:18 avfilter-11.def
@@ -25,8 +25,8 @@ BSRC=/D/x/algorithms_net/xffmpeg/src/audio_video_record.c
 #-rw-r--r-- 1 DEll None    888 Sep 25 16:18 swscale-9.def
 
 all:
-	gcc -g -c -DEXPORT_DLL_API_FF_WRAPPER $(SRC) -o FFWrapper.o $(INC) $(CFLAGS)
-	gcc -g -shared -o libFFWrapper.dll FFWrapper.o -Wl,--out-implib,libFFWrapper.dll.a $(LIBS)
-	gcc -g -o audio_video_record $(BSRC) -L./ -lFFWrapper $(LIBS)
+	gcc -g -c $(SRC) -o $(LIBTARGET).o $(INC) $(CFLAGS)
+	gcc -g -shared -o lib$(LIBTARGET).dll $(LIBTARGET).o -Wl,--out-implib,lib$(LIBTARGET).dll.a $(LIBS)
+	gcc -g -o audio_video_record $(BSRC) -L./ -l$(LIBTARGET) $(LIBS)
 clean:
 	rm -f *.o *.a *.dll audio_video_record
