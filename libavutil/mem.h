@@ -175,7 +175,15 @@ av_alloc_size(1, 2) void *av_malloc_array(size_t nmemb, size_t size);
  * @see av_malloc_array()
  */
 void *av_calloc(size_t nmemb, size_t size) av_malloc_attrib av_alloc_size(1, 2);
-
+#define av_spl_calloc(__nn__, __sz__, __obj__)                                 \
+	{                                                                      \
+		(__obj__) = av_calloc((__nn__), (__sz__));                        \
+		if (__obj__) {                                                 \
+			spllog(0, "av_calloc [MEM-FFWR] : 0x%p.", (__obj__));           \
+		} else {                                                       \
+			spllog(4, "av_calloc: error.");                           \
+		}                                                              \
+	}
 /**
  * Allocate, reallocate, or free a block of memory.
  *

@@ -36,7 +36,11 @@ static inline int utf8towchar(const char *filename_utf8, wchar_t **filename_w)
         errno = EINVAL;
         return -1;
     }
+#if  0
     *filename_w = (wchar_t *)av_calloc(num_chars, sizeof(wchar_t));
+#else 
+    av_spl_calloc(num_chars, sizeof(wchar_t), *filename_w);
+#endif    
     if (!*filename_w) {
         errno = ENOMEM;
         return -1;

@@ -115,8 +115,8 @@ static inline HMODULE win32_dlopen(const char *name)
             module = LoadLibraryExW(path, NULL, LOAD_WITH_ALTERED_SEARCH_PATH);
         }
 exit:
-        av_free(path);
-        av_free(name_w);
+        av_spl_free(path);
+        av_spl_free(name_w);
         return module;
     }
 #endif
