@@ -138,7 +138,16 @@ void *av_malloc(size_t size) av_malloc_attrib av_alloc_size(1);
  * @see av_malloc()
  */
 void *av_mallocz(size_t size) av_malloc_attrib av_alloc_size(1);
-
+#define av_spl_mallocz(__nn__, __obj__)                                 \
+	{                                                                      \
+		(__obj__) = av_mallocz(__nn__);                        \
+		if (__obj__) {                                                 \
+			spllog(0, "av_mallocz [MEM-FFWR] : 0x%p.", (__obj__));           \
+			memset((__obj__), 0, (__nn__));                        \
+		} else {                                                       \
+			spllog(4, "av_mallocz: error.");                           \
+		}                                                              \
+	}
 /**
  * Allocate a memory block for an array with av_malloc().
  *
@@ -395,7 +404,13 @@ void av_free(void *ptr);
  * @see av_free()
  */
 void av_freep(void *ptr);
-
+#define av_spl_freep(__obj__)                                                     \
+	{                                                                      \
+		if (__obj__) {                                                 \
+			spllog(0, "Freep [MEM-FFWR] : 0x%p.", (__obj__));             \
+			av_freep(__obj__);                                         \
+		}                                                              \
+	}
 /**
  * Duplicate a string.
  *

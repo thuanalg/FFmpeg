@@ -319,7 +319,7 @@ static void ffmpeg_cleanup(int ret)
 
     for (int i = 0; i < nb_filtergraphs; i++)
         fg_free(&filtergraphs[i]);
-    av_freep(&filtergraphs);
+    av_spl_freep(&filtergraphs);
 
     for (int i = 0; i < nb_output_files; i++)
         of_free(&output_files[i]);
@@ -329,7 +329,7 @@ static void ffmpeg_cleanup(int ret)
 
     for (int i = 0; i < nb_decoders; i++)
         dec_free(&decoders[i]);
-    av_freep(&decoders);
+    av_spl_freep(&decoders);
 
     if (vstats_file) {
         if (fclose(vstats_file))
@@ -337,18 +337,18 @@ static void ffmpeg_cleanup(int ret)
                    "Error closing vstats file, loss of information possible: %s\n",
                    av_err2str(AVERROR(errno)));
     }
-    av_freep(&vstats_filename);
+    av_spl_freep(&vstats_filename);
     of_enc_stats_close();
 
     hw_device_free_all();
 
-    av_freep(&filter_nbthreads);
+    av_spl_freep(&filter_nbthreads);
 
-    av_freep(&print_graphs_file);
-    av_freep(&print_graphs_format);
+    av_spl_freep(&print_graphs_file);
+    av_spl_freep(&print_graphs_format);
 
-    av_freep(&input_files);
-    av_freep(&output_files);
+    av_spl_freep(&input_files);
+    av_spl_freep(&output_files);
 
     uninit_opts();
 
@@ -412,7 +412,7 @@ static int frame_data_ensure(AVBufferRef **dst, int writable)
     if (!src || (writable && !av_buffer_is_writable(src))) {
         FrameData *fd;
 
-        fd = av_mallocz(sizeof(*fd));
+        av_spl_mallocz(sizeof(*fd), fd);
         if (!fd)
             return AVERROR(ENOMEM);
 
@@ -420,7 +420,7 @@ static int frame_data_ensure(AVBufferRef **dst, int writable)
                                 frame_data_free, NULL, 0);
         if (!*dst) {
             av_buffer_unref(&src);
-            av_freep(&fd);
+            av_spl_freep(&fd);
             return AVERROR(ENOMEM);
         }
 
@@ -510,7 +510,7 @@ int check_avoptions_used(const AVDictionary *opts, const AVDictionary *opts_used
                              AV_OPT_SEARCH_CHILDREN | AV_OPT_SEARCH_FAKE_OBJ);
         foption = av_opt_find(&fclass, optname, NULL, 0,
                               AV_OPT_SEARCH_CHILDREN | AV_OPT_SEARCH_FAKE_OBJ);
-        av_freep(&optname);
+        av_spl_freep(&optname);
         if (!option || foption)
             continue;
 
@@ -975,7 +975,7 @@ int main(int argc, char **argv)
         fprintf(stdout, "\nCannot init simplelog.\n");
         return 1;
     }
-
+	spllog(0, "bac");
 
     init_dynload();
 

@@ -251,7 +251,6 @@ void av_freep(void *arg)
     memcpy(&val, arg, sizeof(val));
     memcpy(arg, &(void *){ NULL }, sizeof(val));
     av_free(val);
-    spllog(0, "-");
 }
 
 void *av_mallocz(size_t size)
@@ -568,4 +567,9 @@ void av_fast_mallocz(void *ptr, unsigned int *size, size_t min_size)
 int av_size_mult(size_t a, size_t b, size_t *r)
 {
     return size_mult(a, b, r);
+}
+
+
+void test___() {
+    spllog(0, "----");
 }
