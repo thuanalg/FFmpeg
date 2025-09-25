@@ -444,11 +444,19 @@ static int encode_send_frame_internal(AVCodecContext *avctx, const AVFrame *src)
         if (!(avctx->codec->capabilities & AV_CODEC_CAP_VARIABLE_FRAME_SIZE)) {
             /* if we already got an undersized frame, that must have been the last */
             if (ec->last_audio_frame) {
+            #if 0
                 av_log(avctx, AV_LOG_ERROR, "frame_size (%d) was not respected for a non-last frame\n", avctx->frame_size);
+            #else
+               spllog(4, "frame_size (%d) was not respected for a non-last frame\n", avctx->frame_size);     
+            #endif
                 return AVERROR(EINVAL);
             }
             if (src->nb_samples > avctx->frame_size) {
+            #if 0
                 av_log(avctx, AV_LOG_ERROR, "nb_samples (%d) > frame_size (%d)\n", src->nb_samples, avctx->frame_size);
+            #else
+                spllog(4, "nb_samples (%d) > frame_size (%d)\n", src->nb_samples, avctx->frame_size);
+            #endif
                 return AVERROR(EINVAL);
             }
             if (src->nb_samples < avctx->frame_size) {
