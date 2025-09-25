@@ -706,7 +706,7 @@ int attribute_align_arg avcodec_send_packet(AVCodecContext *avctx, const AVPacke
     AVCodecInternal *avci = avctx->internal;
     DecodeContext     *dc = decode_ctx(avci);
     int ret;
-
+    spllog(1, "AVPacket");
     if (!avcodec_is_open(avctx) || !av_codec_is_decoder(avctx->codec))
         return AVERROR(EINVAL);
 

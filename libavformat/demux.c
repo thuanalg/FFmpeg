@@ -1538,7 +1538,7 @@ int av_read_frame(AVFormatContext *s, AVPacket *pkt)
     int eof = 0;
     int ret;
     AVStream *st;
-
+    spllog(1, "AVPacket");
     if (!genpts) {
         ret = si->packet_buffer.head
               ? avpriv_packet_list_get(&si->packet_buffer, pkt)

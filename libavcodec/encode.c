@@ -348,7 +348,7 @@ static int encode_receive_packet_internal(AVCodecContext *avctx, AVPacket *avpkt
 {
     AVCodecInternal *avci = avctx->internal;
     int ret;
-
+    spllog(1, "AVCodecContext, AVPacket");
     if (avci->draining_done)
         return AVERROR_EOF;
 
@@ -433,7 +433,8 @@ static int encode_send_frame_internal(AVCodecContext *avctx, const AVFrame *src)
     EncodeContext     *ec = encode_ctx(avci);
     AVFrame *dst = avci->buffer_frame;
     int ret;
-
+    spllog(1, "nb_samples (%d) > frame_size (%d)\n", 
+        src ? src->nb_samples : -1 , avctx ? avctx->frame_size : -1);
     if (avctx->codec->type == AVMEDIA_TYPE_AUDIO) {
         /* extract audio service type metadata */
         AVFrameSideData *sd = av_frame_get_side_data(src, AV_FRAME_DATA_AUDIO_SERVICE_TYPE);
@@ -494,15 +495,15 @@ finish:
     // than none at all
     if (!(avctx->flags & AV_CODEC_FLAG_FRAME_DURATION))
         dst->duration = 0;
-
+    
     return 0;
 }
 
 int attribute_align_arg avcodec_send_frame(AVCodecContext *avctx, const AVFrame *frame)
 {
     AVCodecInternal *avci = avctx->internal;
-    int ret;
-
+    int ret = 0;
+    spllog(1, "AVCodecContext, AVFrame");
     if (!avcodec_is_open(avctx) || !av_codec_is_encoder(avctx->codec))
         return AVERROR(EINVAL);
 
@@ -534,8 +535,8 @@ int attribute_align_arg avcodec_send_frame(AVCodecContext *avctx, const AVFrame 
 int attribute_align_arg avcodec_receive_packet(AVCodecContext *avctx, AVPacket *avpkt)
 {
     AVCodecInternal *avci = avctx->internal;
-    int ret;
-
+    int ret = 0;
+    spllog(1, "AVCodecContext, AVPacket");
     av_packet_unref(avpkt);
 
     if (!avcodec_is_open(avctx) || !av_codec_is_encoder(avctx->codec))

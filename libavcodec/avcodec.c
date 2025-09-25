@@ -708,7 +708,7 @@ int avcodec_is_open(AVCodecContext *s)
 int attribute_align_arg avcodec_receive_frame(AVCodecContext *avctx, AVFrame *frame)
 {
     av_frame_unref(frame);
-
+    spllog(1, "AVFrame");
     if (!avcodec_is_open(avctx) || !avctx->codec)
         return AVERROR(EINVAL);
 
