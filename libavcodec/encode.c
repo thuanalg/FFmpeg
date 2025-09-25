@@ -503,7 +503,8 @@ int attribute_align_arg avcodec_send_frame(AVCodecContext *avctx, const AVFrame 
 {
     AVCodecInternal *avci = avctx->internal;
     int ret = 0;
-    spllog(1, "AVCodecContext, AVFrame");
+    spllog(1, "AVCodecContext->frame_num: %d, codec: %d, AVFrame", 
+        avctx ? avctx->frame_num : -1, avctx ? (avctx->codec_id) : -1 );
     if (!avcodec_is_open(avctx) || !av_codec_is_encoder(avctx->codec))
         return AVERROR(EINVAL);
 

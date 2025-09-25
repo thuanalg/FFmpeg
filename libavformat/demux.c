@@ -227,7 +227,7 @@ int avformat_open_input(AVFormatContext **ps, const char *filename,
     AVDictionary *tmp = NULL;
     ID3v2ExtraMeta *id3v2_extra_meta = NULL;
     int ret = 0;
-
+    spllog(1, "filename: %s", filename);
     if (!s && !(s = avformat_alloc_context()))
         return AVERROR(ENOMEM);
     fci = ff_fc_internal(s);

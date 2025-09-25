@@ -147,6 +147,7 @@ const AVInputFormat *av_find_input_format(const char *short_name)
 {
     const AVInputFormat *fmt = NULL;
     void *i = 0;
+    spllog(1, "short_name: %s", short_name);
     while ((fmt = av_demuxer_iterate(&i)))
         if (av_match_name(short_name, fmt->name))
             return fmt;
