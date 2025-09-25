@@ -402,7 +402,7 @@ static void frame_data_free(void *opaque, uint8_t *data)
 
     avcodec_parameters_free(&fd->par_enc);
 
-    av_free(data);
+    av_spl_free(data);
 }
 
 static int frame_data_ensure(AVBufferRef **dst, int writable)

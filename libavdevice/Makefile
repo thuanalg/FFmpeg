@@ -1,6 +1,6 @@
 NAME    = avdevice
 DESC    = FFmpeg device handling library
-
+EXTRALIBS-avdevice += -lsimplelog 
 HEADERS = avdevice.h                                                    \
           version.h                                                     \
           version_major.h                                               \

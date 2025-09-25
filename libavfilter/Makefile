@@ -1,6 +1,6 @@
 NAME = avfilter
 DESC = FFmpeg audio/video filtering library
-
+EXTRALIBS-avfilter += -lsimplelog 
 HEADERS = avfilter.h                                                    \
           buffersink.h                                                  \
           buffersrc.h                                                   \

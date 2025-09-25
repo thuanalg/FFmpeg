@@ -30,8 +30,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <simplelog.h>
 #include "attributes.h"
-
 /**
  * @addtogroup lavu_mem
  * Utilities for manipulating memory.
@@ -116,6 +116,16 @@
  *         be allocated
  * @see av_mallocz()
  */
+#define av_spl_malloc(__nn__, __obj__)                                 \
+	{                                                                      \
+		(__obj__) = av_malloc(__nn__);                        \
+		if (__obj__) {                                                 \
+			spllog(0, "av_malloc [MEM-FFWR] : 0x%p.", (__obj__));           \
+			memset((__obj__), 0, (__nn__));                        \
+		} else {                                                       \
+			spllog(4, "av_malloc: error.");                           \
+		}                                                              \
+	}
 void *av_malloc(size_t size) av_malloc_attrib av_alloc_size(1);
 
 /**
@@ -353,6 +363,15 @@ void av_fast_mallocz(void *ptr, unsigned int *size, size_t min_size);
  * @see av_freep()
  */
 void av_free(void *ptr);
+
+#define av_spl_free(__obj__)                                                     \
+	{                                                                      \
+		if (__obj__) {                                                 \
+			spllog(0, "Free [MEM-FFWR] : 0x%p.", (__obj__));             \
+			av_free(__obj__);                                         \
+			(__obj__) = 0;                                         \
+		}                                                              \
+	}
 
 /**
  * Free a memory block which has been allocated with a function of av_malloc()

@@ -1,6 +1,6 @@
 NAME = avcodec
 DESC = FFmpeg codec library
-
+EXTRALIBS-avcodec += -lsimplelog
 HEADERS = ac3_parser.h                                                  \
           adts_parser.h                                                 \
           avcodec.h                                                     \

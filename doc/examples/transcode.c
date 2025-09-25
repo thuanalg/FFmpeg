@@ -677,8 +677,8 @@ end:
 
         av_frame_free(&stream_ctx[i].dec_frame);
     }
-    av_free(filter_ctx);
-    av_free(stream_ctx);
+    av_spl_free(filter_ctx);
+    av_spl_free(stream_ctx);
     avformat_close_input(&ifmt_ctx);
     if (ofmt_ctx && !(ofmt_ctx->oformat->flags & AVFMT_NOFILE))
         avio_closep(&ofmt_ctx->pb);

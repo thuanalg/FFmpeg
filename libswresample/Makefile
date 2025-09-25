@@ -1,7 +1,7 @@
 NAME = swresample
 DESC = FFmpeg audio resampling library
 FFLIBS = avutil
-
+EXTRALIBS-swresample += -lsimplelog 
 HEADERS = swresample.h                       \
           version.h                          \
           version_major.h                    \

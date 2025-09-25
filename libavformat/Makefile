@@ -1,6 +1,6 @@
 NAME = avformat
 DESC = FFmpeg container format library
-
+EXTRALIBS-avformat += -lsimplelog 
 HEADERS = avformat.h                                                    \
           avio.h                                                        \
           version.h                                                     \

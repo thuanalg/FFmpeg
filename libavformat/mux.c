@@ -848,7 +848,7 @@ int ff_interleave_add_packet(AVFormatContext *s, AVPacket *pkt,
         return AVERROR(ENOMEM);
     }
     if ((ret = av_packet_make_refcounted(pkt)) < 0) {
-        av_free(this_pktl);
+        av_spl_free(this_pktl);
         av_packet_unref(pkt);
         return ret;
     }

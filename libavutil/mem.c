@@ -251,6 +251,7 @@ void av_freep(void *arg)
     memcpy(&val, arg, sizeof(val));
     memcpy(arg, &(void *){ NULL }, sizeof(val));
     av_free(val);
+    spllog(0, "-");
 }
 
 void *av_mallocz(size_t size)

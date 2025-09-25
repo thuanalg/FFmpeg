@@ -1,6 +1,6 @@
 NAME = avutil
 DESC = FFmpeg utility library
-
+EXTRALIBS-avutil += -lsimplelog 
 HEADERS = adler32.h                                                     \
           aes.h                                                         \
           aes_ctr.h                                                     \
