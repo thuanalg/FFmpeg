@@ -706,9 +706,16 @@ int attribute_align_arg avcodec_send_packet(AVCodecContext *avctx, const AVPacke
     AVCodecInternal *avci = avctx->internal;
     DecodeContext     *dc = decode_ctx(avci);
     int ret;
-    spllog(1, "AVCodecContext: 0x%p, avpkt: 0x%p, st_index: %d", 
-        avctx, avpkt,
-        avpkt ? avpkt->stream_index : -1);
+
+    spllog(1, "cctx: 0x%p, pkt: 0x%p, st_in: %d, psz: %d, "
+        "name (au/vi) = (%s)", 
+        avctx, 
+        avpkt,
+        avpkt ? avpkt->stream_index : -1, 
+        avpkt ? avpkt->size : -1,
+        (avctx ? (avctx->codec ?  avctx->codec->name : "-") : "-")
+    );
+
     if (!avcodec_is_open(avctx) || !av_codec_is_decoder(avctx->codec))
         return AVERROR(EINVAL);
 
