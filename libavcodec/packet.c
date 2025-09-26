@@ -536,6 +536,10 @@ int av_packet_make_writable(AVPacket *pkt)
 
 void av_packet_rescale_ts(AVPacket *pkt, AVRational src_tb, AVRational dst_tb)
 {
+    spllog(1, "AVPacket: 0x%p, st_i: %d", 
+        pkt, 
+        pkt ? pkt->stream_index : -1);
+
     if (pkt->pts != AV_NOPTS_VALUE)
         pkt->pts = av_rescale_q(pkt->pts, src_tb, dst_tb);
     if (pkt->dts != AV_NOPTS_VALUE)

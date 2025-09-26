@@ -1223,6 +1223,10 @@ fail:
 int av_interleaved_write_frame(AVFormatContext *s, AVPacket *pkt)
 {
     int ret;
+    spllog(1, "AVFormatContext: 0x%p, pkt: 0x%p, st_i: %d", 
+        s, 
+        pkt, 
+        pkt ? pkt->stream_index : -1);
 
     if (pkt) {
         ret = write_packets_common(s, pkt, 1/*interleaved*/);

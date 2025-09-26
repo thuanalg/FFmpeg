@@ -77,7 +77,11 @@ static int encode_write(AVCodecContext *avctx, AVFrame *frame, FILE *fout)
         return AVERROR(ENOMEM);
 
     if ((ret = avcodec_send_frame(avctx, frame)) < 0) {
+#if 0        
         fprintf(stderr, "Error code: %s\n", av_err2str(ret));
+#else
+        spllog(4, "Error code: %s\n", av_err2str(ret));
+#endif
         goto end;
     }
     while (1) {

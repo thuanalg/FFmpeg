@@ -1536,9 +1536,13 @@ int av_read_frame(AVFormatContext *s, AVPacket *pkt)
     FFFormatContext *const si = ffformatcontext(s);
     const int genpts = s->flags & AVFMT_FLAG_GENPTS;
     int eof = 0;
-    int ret;
-    AVStream *st;
-    spllog(1, "AVPacket");
+    int ret = 0;
+    AVStream *st = 0;
+
+    spllog(1, "AVFormatContext: 0x%p, ptk: 0x%p, t_index: %d", 
+        s, pkt, 
+        pkt ? pkt->stream_index: -1);
+
     if (!genpts) {
         ret = si->packet_buffer.head
               ? avpriv_packet_list_get(&si->packet_buffer, pkt)
