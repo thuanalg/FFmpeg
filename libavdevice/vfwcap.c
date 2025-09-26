@@ -169,8 +169,13 @@ static int shall_we_drop(AVFormatContext *s)
     unsigned int buffer_fullness = (ctx->curbufsize*100)/s->max_picture_buffer;
 
     if(dropscore[++ctx->frame_num%ndropscores] <= buffer_fullness) {
+#if 0
         av_log(s, AV_LOG_ERROR,
               "real-time buffer %d%% full! frame dropped!\n", buffer_fullness);
+#else
+        spllog(4,
+              "real-time buffer %d%% full! frame dropped!\n", buffer_fullness);
+#endif
         return 1;
     }
 
