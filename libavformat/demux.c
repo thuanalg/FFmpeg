@@ -1539,9 +1539,14 @@ int av_read_frame(AVFormatContext *s, AVPacket *pkt)
     int ret = 0;
     AVStream *st = 0;
 
-    spllog(1, "AVFormatContext: 0x%p, ptk: 0x%p, t_index: %d", 
-        s, pkt, 
-        pkt ? pkt->stream_index: -1);
+    spllog(0, "fctx: 0x%p, ptk: 0x%p, t_index: %d"
+        ", name (acodec, vcodec) : (%s, %s)", 
+        s, 
+        pkt, 
+        pkt ? pkt->stream_index: -1,
+        s->audio_codec ? (s->audio_codec->name ? s->audio_codec->name : "-") : "-",
+        s->video_codec ? (s->video_codec->name ? s->video_codec->name : "-") : "-"
+    );
 
     if (!genpts) {
         ret = si->packet_buffer.head
@@ -1626,6 +1631,16 @@ return_packet:
         pkt->dts -= RELATIVE_TS_BASE;
     if (is_relative(pkt->pts))
         pkt->pts -= RELATIVE_TS_BASE;
+
+    spllog(1, "fctx: 0x%p, ptk: 0x%p, t_index: %d"
+        ", name (acodec, vcodec) : (%s, %s), szpkt: %d", 
+        s, 
+        pkt, 
+        pkt ? pkt->stream_index: -1,
+        s->audio_codec ? (s->audio_codec->name ? s->audio_codec->name : "-") : "-",
+        s->video_codec ? (s->video_codec->name ? s->video_codec->name : "-") : "-",
+        pkt ? pkt->size : -1
+    );
 
     return ret;
 }
