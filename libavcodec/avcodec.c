@@ -707,18 +707,24 @@ int avcodec_is_open(AVCodecContext *s)
 
 int attribute_align_arg avcodec_receive_frame(AVCodecContext *avctx, AVFrame *frame)
 {
+    int ret = 0;
     av_frame_unref(frame);
     spllog(1, "avcodecctx: 0x%p, AVCodecContext->frame_num: %d, codec: %d, AVFrame", 
         avctx,
         avctx ? avctx->frame_num : -1, 
         avctx ? (avctx->codec_id) : -1 );
     
-    if (!avcodec_is_open(avctx) || !avctx->codec)
+    if (!avcodec_is_open(avctx) || !avctx->codec) {
+        spllog(4, "AVERROR(EINVAL)");
         return AVERROR(EINVAL);
+    }
 
-    if (ff_codec_is_decoder(avctx->codec))
-        return ff_decode_receive_frame(avctx, frame);
-    return ff_encode_receive_frame(avctx, frame);
+    if (ff_codec_is_decoder(avctx->codec)) {
+        ret = ff_decode_receive_frame(avctx, frame);
+        return ret;
+    }
+    ret = ff_encode_receive_frame(avctx, frame);
+    return ret;
 }
 
 #define WRAP_CONFIG(allowed_type, field, field_type, terminator)            \

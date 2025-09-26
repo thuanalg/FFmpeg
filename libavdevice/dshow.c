@@ -329,9 +329,15 @@ static int shall_we_drop(AVFormatContext *s, int index, enum dshowDeviceType dev
     const char *devtypename = (devtype == VideoDevice) ? "video" : "audio";
 
     if(dropscore[++ctx->video_frame_num%ndropscores] <= buffer_fullness) {
+#if 0        
         av_log(s, AV_LOG_ERROR,
               "real-time buffer [%s] [%s input] too full or near too full (%d%% of size: %d [rtbufsize parameter])! frame dropped!\n",
               ctx->device_name[devtype], devtypename, buffer_fullness, s->max_picture_buffer);
+#else
+        spllog(4,
+              "real-time buffer [%s] [%s input] too full or near too full (%d%% of size: %d [rtbufsize parameter])! frame dropped!\n",
+              ctx->device_name[devtype], devtypename, buffer_fullness, s->max_picture_buffer);
+#endif              
         return 1;
     }
 
