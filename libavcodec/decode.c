@@ -118,7 +118,7 @@ static int apply_param_change(AVCodecContext *avctx, const AVPacket *avpkt)
         return 0;
 
     if (!(avctx->codec->capabilities & AV_CODEC_CAP_PARAM_CHANGE)) {
-        av_log(avctx, AV_LOG_ERROR, "This decoder does not support parameter "
+        spllog(4, "This decoder does not support parameter "
                "changes, but PARAM_CHANGE side data was sent to it.\n");
         ret = AVERROR(EINVAL);
         goto fail2;
@@ -135,7 +135,7 @@ static int apply_param_change(AVCodecContext *avctx, const AVPacket *avpkt)
             goto fail;
         val = bytestream_get_le32(&data);
         if (val <= 0 || val > INT_MAX) {
-            av_log(avctx, AV_LOG_ERROR, "Invalid sample rate");
+            spllog(4, "Invalid sample rate");
             ret = AVERROR_INVALIDDATA;
             goto fail2;
         }
@@ -155,11 +155,11 @@ static int apply_param_change(AVCodecContext *avctx, const AVPacket *avpkt)
 
     return 0;
 fail:
-    av_log(avctx, AV_LOG_ERROR, "PARAM_CHANGE side data too small.\n");
+    spllog(4, "PARAM_CHANGE side data too small.\n");
     ret = AVERROR_INVALIDDATA;
 fail2:
     if (ret < 0) {
-        av_log(avctx, AV_LOG_ERROR, "Error applying parameter changes.\n");
+        spllog(4, "Error applying parameter changes.\n");
         if (avctx->err_recognition & AV_EF_EXPLODE)
             return ret;
     }
@@ -188,7 +188,7 @@ static int decode_bsfs_init(AVCodecContext *avctx)
 
     ret = av_bsf_list_parse_str(codec->bsfs, &avci->bsf);
     if (ret < 0) {
-        av_log(avctx, AV_LOG_ERROR, "Error parsing decoder bitstream filters '%s': %s\n", codec->bsfs, av_err2str(ret));
+        spllog(4, "Error parsing decoder bitstream filters '%s': %s\n", codec->bsfs, av_err2str(ret));
         if (ret != AVERROR(ENOMEM))
             ret = AVERROR_BUG;
         goto fail;
@@ -478,7 +478,7 @@ static inline int decode_simple_internal(AVCodecContext *avctx, AVFrame *frame, 
                                 avctx->thread_count : 1);
 
             if (decode_ctx(avci)->nb_draining_errors++ >= nb_errors_max) {
-                av_log(avctx, AV_LOG_ERROR, "Too many errors when draining, this is a bug. "
+                spllog(4, "Too many errors when draining, this is a bug. "
                        "Stop draining and force EOF.\n");
                 avci->draining_done = 1;
                 ret = AVERROR_BUG;
@@ -792,7 +792,7 @@ static int frame_validate(AVCodecContext *avctx, AVFrame *frame)
 
     return 0;
 fail:
-    av_log(avctx, AV_LOG_ERROR, "An invalid frame was output by a decoder. "
+    spllog(4, "An invalid frame was output by a decoder. "
            "This is a bug, please report it.\n");
     return AVERROR_BUG;
 }
@@ -855,7 +855,7 @@ static int recode_subtitle(AVCodecContext *avctx, const AVPacket **outpkt,
     inl = inpkt->size;
 
     if (inl >= INT_MAX / UTF8_MAX_BYTES - AV_INPUT_BUFFER_PADDING_SIZE) {
-        av_log(avctx, AV_LOG_ERROR, "Subtitles packet is too big for recoding\n");
+        spllog(4, "Subtitles packet is too big for recoding\n");
         return AVERROR(ERANGE);
     }
 
@@ -875,7 +875,7 @@ static int recode_subtitle(AVCodecContext *avctx, const AVPacket **outpkt,
         iconv(cd, NULL, NULL, &outb, &outl) == (size_t)-1 ||
         outl >= buf_pkt->size || inl != 0) {
         ret = FFMIN(AVERROR(errno), -1);
-        av_log(avctx, AV_LOG_ERROR, "Unable to recode subtitle event \"%s\" "
+        spllog(4, "Unable to recode subtitle event \"%s\" "
                "from %s to UTF-8\n", inpkt->data, avctx->sub_charenc);
         goto end;
     }
@@ -891,7 +891,7 @@ end:
         iconv_close(cd);
     return ret;
 #else
-    av_log(avctx, AV_LOG_ERROR, "requesting subtitles recoding without iconv");
+    spllog(4, "requesting subtitles recoding without iconv");
     return AVERROR(EINVAL);
 #endif
 }
@@ -921,13 +921,13 @@ int avcodec_decode_subtitle2(AVCodecContext *avctx, AVSubtitle *sub,
     int ret = 0;
 
     if (!avpkt->data && avpkt->size) {
-        av_log(avctx, AV_LOG_ERROR, "invalid packet: NULL data, size != 0\n");
+        spllog(4, "invalid packet: NULL data, size != 0\n");
         return AVERROR(EINVAL);
     }
     if (!avctx->codec)
         return AVERROR(EINVAL);
     if (ffcodec(avctx->codec)->cb_type != FF_CODEC_CB_TYPE_DECODE_SUB) {
-        av_log(avctx, AV_LOG_ERROR, "Codec not subtitle decoder\n");
+        spllog(4, "Codec not subtitle decoder\n");
         return AVERROR(EINVAL);
     }
 
@@ -970,7 +970,7 @@ int avcodec_decode_subtitle2(AVCodecContext *avctx, AVSubtitle *sub,
         for (unsigned i = 0; i < sub->num_rects; i++) {
             if (avctx->sub_charenc_mode != FF_SUB_CHARENC_MODE_IGNORE &&
                 sub->rects[i]->ass && !utf8_check(sub->rects[i]->ass)) {
-                av_log(avctx, AV_LOG_ERROR,
+                spllog(4,
                        "Invalid UTF-8 in decoded subtitles text; "
                        "maybe missing -sub_charenc option\n");
                 avsubtitle_free(sub);
@@ -1062,14 +1062,14 @@ int ff_decode_get_hw_frames_ctx(AVCodecContext *avctx,
     if (avctx->hw_frames_ctx)
         return 0;
     if (!avctx->hw_device_ctx) {
-        av_log(avctx, AV_LOG_ERROR, "A hardware frames or device context is "
+        spllog(4, "A hardware frames or device context is "
                 "required for hardware accelerated decoding.\n");
         return AVERROR(EINVAL);
     }
 
     device_ctx = (AVHWDeviceContext *)avctx->hw_device_ctx->data;
     if (device_ctx->type != dev_type) {
-        av_log(avctx, AV_LOG_ERROR, "Device type %s expected for hardware "
+        spllog(4, "Device type %s expected for hardware "
                "decoding, but got %s.\n", av_hwdevice_get_type_name(dev_type),
                av_hwdevice_get_type_name(device_ctx->type));
         return AVERROR(EINVAL);
@@ -1185,7 +1185,7 @@ static int hwaccel_init(AVCodecContext *avctx,
     if (hwaccel->init) {
         err = hwaccel->init(avctx);
         if (err < 0) {
-            av_log(avctx, AV_LOG_ERROR, "Failed setup for format %s: "
+            spllog(4, "Failed setup for format %s: "
                    "hwaccel initialisation returned error.\n",
                    av_get_pix_fmt_name(hwaccel->p.pix_fmt));
             av_freep(&avctx->internal->hwaccel_priv_data);
@@ -1247,7 +1247,7 @@ int ff_get_format(AVCodecContext *avctx, const enum AVPixelFormat *fmt)
 
         desc = av_pix_fmt_desc_get(user_choice);
         if (!desc) {
-            av_log(avctx, AV_LOG_ERROR, "Invalid format returned by "
+            spllog(4, "Invalid format returned by "
                    "get_format() callback.\n");
             ret = AV_PIX_FMT_NONE;
             break;
@@ -1260,7 +1260,7 @@ int ff_get_format(AVCodecContext *avctx, const enum AVPixelFormat *fmt)
                 break;
         }
         if (i == n) {
-            av_log(avctx, AV_LOG_ERROR, "Invalid return from get_format(): "
+            spllog(4, "Invalid return from get_format(): "
                    "%s not in possible list.\n", desc->name);
             ret = AV_PIX_FMT_NONE;
             break;
@@ -1291,7 +1291,7 @@ int ff_get_format(AVCodecContext *avctx, const enum AVPixelFormat *fmt)
             const AVHWFramesContext *frames_ctx =
                 (AVHWFramesContext*)avctx->hw_frames_ctx->data;
             if (frames_ctx->format != user_choice) {
-                av_log(avctx, AV_LOG_ERROR, "Invalid setup for format %s: "
+                spllog(4, "Invalid setup for format %s: "
                        "does not match the format of the provided frames "
                        "context.\n", desc->name);
                 goto try_again;
@@ -1302,7 +1302,7 @@ int ff_get_format(AVCodecContext *avctx, const enum AVPixelFormat *fmt)
             const AVHWDeviceContext *device_ctx =
                 (AVHWDeviceContext*)avctx->hw_device_ctx->data;
             if (device_ctx->type != config->device_type) {
-                av_log(avctx, AV_LOG_ERROR, "Invalid setup for format %s: "
+                spllog(4, "Invalid setup for format %s: "
                        "does not match the type of the provided device "
                        "context.\n", desc->name);
                 goto try_again;
@@ -1314,7 +1314,7 @@ int ff_get_format(AVCodecContext *avctx, const enum AVPixelFormat *fmt)
                    AV_CODEC_HW_CONFIG_METHOD_AD_HOC) {
             // Some ad-hoc configuration we can't see and can't check.
         } else {
-            av_log(avctx, AV_LOG_ERROR, "Invalid setup for format %s: "
+            spllog(4, "Invalid setup for format %s: "
                    "missing configuration.\n", desc->name);
             goto try_again;
         }
@@ -1632,7 +1632,7 @@ static void validate_avframe_allocation(AVCodecContext *avctx, AVFrame *frame)
         // For formats without data like hwaccel allow unused pointers to be non-NULL.
         for (i = num_planes; num_planes > 0 && i < FF_ARRAY_ELEMS(frame->data); i++) {
             if (frame->data[i])
-                av_log(avctx, AV_LOG_ERROR, "Buffer returned by get_buffer2() did not zero unused plane pointers\n");
+                spllog(4, "Buffer returned by get_buffer2() did not zero unused plane pointers\n");
             frame->data[i] = NULL;
         }
     }
@@ -1737,7 +1737,7 @@ int ff_get_buffer(AVCodecContext *avctx, AVFrame *frame, int flags)
     if (avctx->codec_type == AVMEDIA_TYPE_VIDEO) {
         if ((unsigned)avctx->width > INT_MAX - STRIDE_ALIGN ||
             (ret = av_image_check_size2(FFALIGN(avctx->width, STRIDE_ALIGN), avctx->height, avctx->max_pixels, AV_PIX_FMT_NONE, 0, avctx)) < 0 || avctx->pix_fmt<0) {
-            av_log(avctx, AV_LOG_ERROR, "video_get_buffer: image parameters invalid\n");
+            spllog(4, "video_get_buffer: image parameters invalid\n");
             ret = AVERROR(EINVAL);
             goto fail;
         }
@@ -1749,13 +1749,13 @@ int ff_get_buffer(AVCodecContext *avctx, AVFrame *frame, int flags)
         }
 
         if (frame->data[0] || frame->data[1] || frame->data[2] || frame->data[3]) {
-            av_log(avctx, AV_LOG_ERROR, "pic->data[*]!=NULL in get_buffer_internal\n");
+            spllog(4, "pic->data[*]!=NULL in get_buffer_internal\n");
             ret = AVERROR(EINVAL);
             goto fail;
         }
     } else if (avctx->codec_type == AVMEDIA_TYPE_AUDIO) {
         if (frame->nb_samples * (int64_t)avctx->ch_layout.nb_channels > avctx->max_samples) {
-            av_log(avctx, AV_LOG_ERROR, "samples per frame %d, exceeds max_samples %"PRId64"\n", frame->nb_samples, avctx->max_samples);
+            spllog(4, "samples per frame %d, exceeds max_samples %"PRId64"\n", frame->nb_samples, avctx->max_samples);
             ret = AVERROR(EINVAL);
             goto fail;
         }
@@ -1797,7 +1797,7 @@ end:
 
 fail:
     if (ret < 0) {
-        av_log(avctx, AV_LOG_ERROR, "get_buffer() failed\n");
+        spllog(4, "get_buffer() failed\n");
         av_frame_unref(frame);
     }
 
@@ -1850,7 +1850,7 @@ int ff_reget_buffer(AVCodecContext *avctx, AVFrame *frame, int flags)
 {
     int ret = reget_buffer_internal(avctx, frame, flags);
     if (ret < 0)
-        av_log(avctx, AV_LOG_ERROR, "reget_buffer() failed\n");
+        spllog(4, "reget_buffer() failed\n");
     return ret;
 }
 
@@ -1993,7 +1993,7 @@ int ff_decode_preinit(AVCodecContext *avctx)
     }
     if (avctx->sub_charenc) {
         if (avctx->codec_type != AVMEDIA_TYPE_SUBTITLE) {
-            av_log(avctx, AV_LOG_ERROR, "Character encoding is only "
+            spllog(4, "Character encoding is only "
                    "supported with subtitles codecs\n");
             return AVERROR(EINVAL);
         } else if (avctx->codec_descriptor->props & AV_CODEC_PROP_BITMAP_SUB) {
@@ -2012,13 +2012,13 @@ int ff_decode_preinit(AVCodecContext *avctx)
                 iconv_t cd = iconv_open("UTF-8", avctx->sub_charenc);
                 if (cd == (iconv_t)-1) {
                     ret = AVERROR(errno);
-                    av_log(avctx, AV_LOG_ERROR, "Unable to open iconv context "
+                    spllog(4, "Unable to open iconv context "
                            "with input character encoding \"%s\"\n", avctx->sub_charenc);
                     return ret;
                 }
                 iconv_close(cd);
 #else
-                av_log(avctx, AV_LOG_ERROR, "Character encoding subtitles "
+                spllog(4, "Character encoding subtitles "
                        "conversion needs a libavcodec built with iconv support "
                        "for this codec\n");
                 return AVERROR(ENOSYS);
@@ -2048,7 +2048,7 @@ int ff_decode_preinit(AVCodecContext *avctx)
             int val = avctx->side_data_prefer_packet[i];
 
             if (val < 0 || val >= AV_PKT_DATA_NB) {
-                av_log(avctx, AV_LOG_ERROR, "Invalid side data type: %d\n", val);
+                spllog(4, "Invalid side data type: %d\n", val);
                 return AVERROR(EINVAL);
             }
 
@@ -2059,7 +2059,7 @@ int ff_decode_preinit(AVCodecContext *avctx)
                     // this code will need to be changed when we have more than
                     // 64 frame side data types
                     if (val >= 64) {
-                        av_log(avctx, AV_LOG_ERROR, "Side data type too big\n");
+                        spllog(4, "Side data type too big\n");
                         return AVERROR_BUG;
                     }
 
@@ -2350,7 +2350,7 @@ static int attach_displaymatrix(AVCodecContext *avctx, AVFrame *frame, int orien
         return AVERROR_INVALIDDATA;
     ret = ff_frame_new_side_data(avctx, frame, AV_FRAME_DATA_DISPLAYMATRIX, sizeof(int32_t) * 9, &sd);
     if (ret < 0) {
-        av_log(avctx, AV_LOG_ERROR, "Could not allocate frame side data: %s\n", av_err2str(ret));
+        spllog(4, "Could not allocate frame side data: %s\n", av_err2str(ret));
         return ret;
     }
     if (sd) {

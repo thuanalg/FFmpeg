@@ -488,7 +488,7 @@ dshow_cycle_devices(AVFormatContext *avctx, ICreateDevEnum *devenum,
     r = ICreateDevEnum_CreateClassEnumerator(devenum, device_guid[sourcetype],
                                              (IEnumMoniker **) &classenum, 0);
     if (r != S_OK) {
-        av_log(avctx, AV_LOG_ERROR, "Could not enumerate %s devices (or none found).\n",
+        spllog(4, "Could not enumerate %s devices (or none found).\n",
                devtypename);
         return AVERROR(EIO);
     }
@@ -540,7 +540,7 @@ dshow_cycle_devices(AVFormatContext *avctx, ICreateDevEnum *devenum,
             if (!skip--) {
                 r = IMoniker_BindToObject(m, 0, 0, &IID_IBaseFilter, (void *) &device_filter);
                 if (r != S_OK) {
-                    av_log(avctx, AV_LOG_ERROR, "Unable to BindToObject for %s\n", device_name);
+                    spllog(4, "Unable to BindToObject for %s\n", device_name);
                     goto fail;
                 }
                 *device_unique_name = unique_name;
@@ -622,7 +622,7 @@ dshow_cycle_devices(AVFormatContext *avctx, ICreateDevEnum *devenum,
 
     if (pfilter) {
         if (!device_filter) {
-            av_log(avctx, AV_LOG_ERROR, "Could not find %s device with name [%s] among source devices of type %s.\n",
+            spllog(4, "Could not find %s device with name [%s] among source devices of type %s.\n",
                    devtypename, device_name, sourcetypename);
             return AVERROR(EIO);
         }
@@ -646,7 +646,7 @@ static int dshow_get_device_list(AVFormatContext *avctx, AVDeviceInfoList *devic
     r = CoCreateInstance(&CLSID_SystemDeviceEnum, NULL, CLSCTX_INPROC_SERVER,
         &IID_ICreateDevEnum, (void**)&devenum);
     if (r != S_OK) {
-        av_log(avctx, AV_LOG_ERROR, "Could not enumerate system devices.\n");
+        spllog(4, "Could not enumerate system devices.\n");
         goto error;
     }
 
@@ -1157,7 +1157,7 @@ ff_dshow_show_filter_properties(IBaseFilter *device_filter, AVFormatContext *avc
     }
     goto end;
 fail:
-    av_log(avctx, AV_LOG_ERROR, "Failure showing property pages for filter");
+    spllog(4, "Failure showing property pages for filter");
 end:
     if (property_pages)
         ISpecifyPropertyPages_Release(property_pages);
@@ -1197,7 +1197,7 @@ dshow_cycle_pins(AVFormatContext *avctx, enum dshowDeviceType devtype,
 
     r = IBaseFilter_EnumPins(device_filter, &pins);
     if (r != S_OK) {
-        av_log(avctx, AV_LOG_ERROR, "Could not enumerate pins.\n");
+        spllog(4, "Could not enumerate pins.\n");
         return AVERROR(EIO);
     }
 
@@ -1232,7 +1232,7 @@ dshow_cycle_pins(AVFormatContext *avctx, enum dshowDeviceType devtype,
 
         r = IPin_QueryId(pin, &pin_id);
         if (r != S_OK) {
-            av_log(avctx, AV_LOG_ERROR, "Could not query pin id\n");
+            spllog(4, "Could not query pin id\n");
             return AVERROR(EIO);
         }
         pin_buf = dup_wchar_to_utf8(pin_id);
@@ -1260,7 +1260,7 @@ dshow_cycle_pins(AVFormatContext *avctx, enum dshowDeviceType devtype,
 
         if (devtype == AudioDevice && ctx->audio_buffer_size) {
             if (dshow_set_audio_buffer_size(avctx, pin) < 0) {
-                av_log(avctx, AV_LOG_ERROR, "unable to set audio buffer size %d to pin, using pin anyway...", ctx->audio_buffer_size);
+                spllog(4, "unable to set audio buffer size %d to pin, using pin anyway...", ctx->audio_buffer_size);
             }
         }
 
@@ -1283,11 +1283,11 @@ next:
 
     if (ppin) {
         if (set_format && !format_set) {
-            av_log(avctx, AV_LOG_ERROR, "Could not set %s options\n", devtypename);
+            spllog(4, "Could not set %s options\n", devtypename);
             return AVERROR(EIO);
         }
         if (!device_pin) {
-            av_log(avctx, AV_LOG_ERROR,
+            spllog(4,
                 "Could not find output pin from %s capture device.\n", devtypename);
             return AVERROR(EIO);
         }
@@ -1354,13 +1354,13 @@ dshow_open_device(AVFormatContext *avctx, ICreateDevEnum *devenum,
 
         hr = SHCreateStreamOnFile ((LPCSTR) filename, STGM_READ, &ifile_stream);
         if (S_OK != hr) {
-            av_log(avctx, AV_LOG_ERROR, "Could not open capture filter description file.\n");
+            spllog(4, "Could not open capture filter description file.\n");
             goto error;
         }
 
         hr = OleLoadFromStream(ifile_stream, &IID_IBaseFilter, (void **) &device_filter);
         if (hr != S_OK) {
-            av_log(avctx, AV_LOG_ERROR, "Could not load capture filter from file.\n");
+            spllog(4, "Could not load capture filter from file.\n");
             goto error;
         }
 
@@ -1394,7 +1394,7 @@ dshow_open_device(AVFormatContext *avctx, ICreateDevEnum *devenum,
 
     r = IGraphBuilder_AddFilter(graph, device_filter, NULL);
     if (r != S_OK) {
-        av_log(avctx, AV_LOG_ERROR, "Could not add device filter to graph.\n");
+        spllog(4, "Could not add device filter to graph.\n");
         goto error;
     }
 
@@ -1407,7 +1407,7 @@ dshow_open_device(AVFormatContext *avctx, ICreateDevEnum *devenum,
 
     capture_filter = ff_dshow_filter_Create(avctx, callback, devtype);
     if (!capture_filter) {
-        av_log(avctx, AV_LOG_ERROR, "Could not create grabber filter.\n");
+        spllog(4, "Could not create grabber filter.\n");
         goto error;
     }
     ctx->capture_filter[devtype] = capture_filter;
@@ -1425,25 +1425,25 @@ dshow_open_device(AVFormatContext *avctx, ICreateDevEnum *devenum,
 
         hr = SHCreateStreamOnFile ((LPCSTR) filename, STGM_CREATE | STGM_READWRITE, &ofile_stream);
         if (S_OK != hr) {
-            av_log(avctx, AV_LOG_ERROR, "Could not create capture filter description file.\n");
+            spllog(4, "Could not create capture filter description file.\n");
             goto error;
         }
 
         hr  = IBaseFilter_QueryInterface(device_filter, &IID_IPersistStream, (void **) &pers_stream);
         if (hr != S_OK) {
-            av_log(avctx, AV_LOG_ERROR, "Query for IPersistStream failed.\n");
+            spllog(4, "Query for IPersistStream failed.\n");
             goto error;
         }
 
         hr = OleSaveToStream(pers_stream, ofile_stream);
         if (hr != S_OK) {
-            av_log(avctx, AV_LOG_ERROR, "Could not save capture filter \n");
+            spllog(4, "Could not save capture filter \n");
             goto error;
         }
 
         hr = IStream_Commit(ofile_stream, STGC_DEFAULT);
         if (S_OK != hr) {
-            av_log(avctx, AV_LOG_ERROR, "Could not commit capture filter data to file.\n");
+            spllog(4, "Could not commit capture filter data to file.\n");
             goto error;
         }
 
@@ -1457,7 +1457,7 @@ dshow_open_device(AVFormatContext *avctx, ICreateDevEnum *devenum,
     r = IGraphBuilder_AddFilter(graph, (IBaseFilter *) capture_filter,
                                 filter_name[devtype]);
     if (r != S_OK) {
-        av_log(avctx, AV_LOG_ERROR, "Could not add capture filter to graph\n");
+        spllog(4, "Could not add capture filter to graph\n");
         goto error;
     }
 
@@ -1468,12 +1468,12 @@ dshow_open_device(AVFormatContext *avctx, ICreateDevEnum *devenum,
     r = CoCreateInstance(&CLSID_CaptureGraphBuilder2, NULL, CLSCTX_INPROC_SERVER,
                          &IID_ICaptureGraphBuilder2, (void **) &graph_builder2);
     if (r != S_OK) {
-        av_log(avctx, AV_LOG_ERROR, "Could not create CaptureGraphBuilder2\n");
+        spllog(4, "Could not create CaptureGraphBuilder2\n");
         goto error;
     }
     r = ICaptureGraphBuilder2_SetFiltergraph(graph_builder2, graph);
     if (r != S_OK) {
-        av_log(avctx, AV_LOG_ERROR, "Could not set graph for CaptureGraphBuilder2\n");
+        spllog(4, "Could not set graph for CaptureGraphBuilder2\n");
         goto error;
     }
 
@@ -1481,14 +1481,14 @@ dshow_open_device(AVFormatContext *avctx, ICreateDevEnum *devenum,
         (IBaseFilter *) capture_filter); /* connect pins, optionally insert intermediate filters like crossbar if necessary */
 
     if (r != S_OK) {
-        av_log(avctx, AV_LOG_ERROR, "Could not RenderStream to connect pins\n");
+        spllog(4, "Could not RenderStream to connect pins\n");
         goto error;
     }
 
     r = ff_dshow_try_setup_crossbar_options(graph_builder2, device_filter, devtype, avctx);
 
     if (r != S_OK) {
-        av_log(avctx, AV_LOG_ERROR, "Could not setup CrossBar\n");
+        spllog(4, "Could not setup CrossBar\n");
         goto error;
     }
 
@@ -1577,7 +1577,7 @@ dshow_add_device(AVFormatContext *avctx,
             bih = &v->bmiHeader;
         }
         if (!bih) {
-            av_log(avctx, AV_LOG_ERROR, "Could not get media type.\n");
+            spllog(4, "Could not get media type.\n");
             goto error;
         }
 
@@ -1614,7 +1614,7 @@ dshow_add_device(AVFormatContext *avctx,
             }
         } else {
             if (par->codec_id == AV_CODEC_ID_NONE) {
-                av_log(avctx, AV_LOG_ERROR, "Unknown compression type. "
+                spllog(4, "Unknown compression type. "
                                  "Please report type 0x%X.\n", (int) bih->biCompression);
                 ret = AVERROR_PATCHWELCOME;
                 goto error;
@@ -1623,7 +1623,7 @@ dshow_add_device(AVFormatContext *avctx,
         }
     } else {
         if (!IsEqualGUID(&type.formattype, &FORMAT_WaveFormatEx)) {
-            av_log(avctx, AV_LOG_ERROR, "Could not get media type.\n");
+            spllog(4, "Could not get media type.\n");
             goto error;
         }
 
@@ -1697,7 +1697,7 @@ static int dshow_read_header(AVFormatContext *avctx)
     CoInitialize(0);
 
     if (!ctx->list_devices && !parse_device_name(avctx)) {
-        av_log(avctx, AV_LOG_ERROR, "Malformed dshow input string.\n");
+        spllog(4, "Malformed dshow input string.\n");
         goto error;
     }
 
@@ -1705,7 +1705,7 @@ static int dshow_read_header(AVFormatContext *avctx)
                                                 : AV_CODEC_ID_RAWVIDEO;
     if (ctx->pixel_format != AV_PIX_FMT_NONE) {
         if (ctx->video_codec_id != AV_CODEC_ID_RAWVIDEO) {
-            av_log(avctx, AV_LOG_ERROR, "Pixel format may only be set when "
+            spllog(4, "Pixel format may only be set when "
                               "video codec is not set or set to rawvideo\n");
             ret = AVERROR(EINVAL);
             goto error;
@@ -1714,7 +1714,7 @@ static int dshow_read_header(AVFormatContext *avctx)
     if (ctx->framerate) {
         r = av_parse_video_rate(&ctx->requested_framerate, ctx->framerate);
         if (r < 0) {
-            av_log(avctx, AV_LOG_ERROR, "Could not parse framerate '%s'.\n", ctx->framerate);
+            spllog(4, "Could not parse framerate '%s'.\n", ctx->framerate);
             goto error;
         }
     }
@@ -1722,7 +1722,7 @@ static int dshow_read_header(AVFormatContext *avctx)
     r = CoCreateInstance(&CLSID_FilterGraph, NULL, CLSCTX_INPROC_SERVER,
                          &IID_IGraphBuilder, (void **) &graph);
     if (r != S_OK) {
-        av_log(avctx, AV_LOG_ERROR, "Could not create capture graph.\n");
+        spllog(4, "Could not create capture graph.\n");
         goto error;
     }
     ctx->graph = graph;
@@ -1730,7 +1730,7 @@ static int dshow_read_header(AVFormatContext *avctx)
     r = CoCreateInstance(&CLSID_SystemDeviceEnum, NULL, CLSCTX_INPROC_SERVER,
                          &IID_ICreateDevEnum, (void **) &devenum);
     if (r != S_OK) {
-        av_log(avctx, AV_LOG_ERROR, "Could not enumerate system devices.\n");
+        spllog(4, "Could not enumerate system devices.\n");
         goto error;
     }
 
@@ -1785,39 +1785,47 @@ static int dshow_read_header(AVFormatContext *avctx)
     ctx->curbufsize[1] = 0;
     ctx->mutex = CreateMutex(NULL, 0, NULL);
     if (!ctx->mutex) {
-        av_log(avctx, AV_LOG_ERROR, "Could not create Mutex\n");
+        spllog(4, "Could not create Mutex\n");
         goto error;
     }
     ctx->event[1] = CreateEvent(NULL, 1, 0, NULL);
     if (!ctx->event[1]) {
-        av_log(avctx, AV_LOG_ERROR, "Could not create Event\n");
+        spllog(4, "Could not create Event\n");
         goto error;
     }
 
     r = IGraphBuilder_QueryInterface(graph, &IID_IMediaControl, (void **) &control);
     if (r != S_OK) {
-        av_log(avctx, AV_LOG_ERROR, "Could not get media control.\n");
+        spllog(4, "Could not get media control.\n");
         goto error;
     }
     ctx->control = control;
 
     r = IGraphBuilder_QueryInterface(graph, &IID_IMediaEvent, (void **) &media_event);
     if (r != S_OK) {
-        av_log(avctx, AV_LOG_ERROR, "Could not get media event.\n");
+        spllog(4, "Could not get media event.\n");
         goto error;
     }
     ctx->media_event = media_event;
 
     r = IMediaEvent_GetEventHandle(media_event, (void *) &media_event_handle);
     if (r != S_OK) {
-        av_log(avctx, AV_LOG_ERROR, "Could not get media event handle.\n");
+#if 0
+        spllog(4, "Could not get media event handle.\n");
+#else
+        spllog(4, "Could not get media event handle.\n");
+#endif
         goto error;
     }
     proc = GetCurrentProcess();
     r = DuplicateHandle(proc, media_event_handle, proc, &ctx->event[0],
                         0, 0, DUPLICATE_SAME_ACCESS);
     if (!r) {
-        av_log(avctx, AV_LOG_ERROR, "Could not duplicate media event handle.\n");
+#if 0
+        spllog(4, "Could not duplicate media event handle.\n");
+#else
+        spllog(4, "Could not duplicate media event handle.\n");
+#endif
         goto error;
     }
 
@@ -1827,7 +1835,11 @@ static int dshow_read_header(AVFormatContext *avctx)
         r = IMediaControl_GetState(control, 0, &pfs);
     }
     if (r != S_OK) {
-        av_log(avctx, AV_LOG_ERROR, "Could not run graph (sometimes caused by a device already in use by other application)\n");
+#if 0		
+        spllog(4, "Could not run graph (sometimes caused by a device already in use by other application)\n");
+#else
+        spllog(4, "Could not run graph (sometimes caused by a device already in use by other application)\n");
+#endif
         goto error;
     }
 

@@ -62,7 +62,7 @@ static EncodeContext *encode_ctx(AVCodecInternal *avci)
 int ff_alloc_packet(AVCodecContext *avctx, AVPacket *avpkt, int64_t size)
 {
     if (size < 0 || size > INT_MAX - AV_INPUT_BUFFER_PADDING_SIZE) {
-        av_log(avctx, AV_LOG_ERROR, "Invalid minimum required packet size %"PRId64" (max allowed is %d)\n",
+        spllog(4, "Invalid minimum required packet size %"PRId64" (max allowed is %d)\n",
                size, INT_MAX - AV_INPUT_BUFFER_PADDING_SIZE);
         return AVERROR(EINVAL);
     }
@@ -73,7 +73,7 @@ int ff_alloc_packet(AVCodecContext *avctx, AVPacket *avpkt, int64_t size)
                           &avctx->internal->byte_buffer_size, size);
     avpkt->data = avctx->internal->byte_buffer;
     if (!avpkt->data) {
-        av_log(avctx, AV_LOG_ERROR, "Failed to allocate packet of size %"PRId64"\n", size);
+        spllog(4, "Failed to allocate packet of size %"PRId64"\n", size);
         return AVERROR(ENOMEM);
     }
     avpkt->size = size;
@@ -89,13 +89,13 @@ int avcodec_default_get_encode_buffer(AVCodecContext *avctx, AVPacket *avpkt, in
         return AVERROR(EINVAL);
 
     if (avpkt->data || avpkt->buf) {
-        av_log(avctx, AV_LOG_ERROR, "avpkt->{data,buf} != NULL in avcodec_default_get_encode_buffer()\n");
+        spllog(4, "avpkt->{data,buf} != NULL in avcodec_default_get_encode_buffer()\n");
         return AVERROR(EINVAL);
     }
 
     ret = av_buffer_realloc(&avpkt->buf, avpkt->size + AV_INPUT_BUFFER_PADDING_SIZE);
     if (ret < 0) {
-        av_log(avctx, AV_LOG_ERROR, "Failed to allocate packet of size %d\n", avpkt->size);
+        spllog(4, "Failed to allocate packet of size %d\n", avpkt->size);
         return ret;
     }
     avpkt->data = avpkt->buf->data;
@@ -118,7 +118,7 @@ int ff_get_encode_buffer(AVCodecContext *avctx, AVPacket *avpkt, int64_t size, i
         goto fail;
 
     if (!avpkt->data || !avpkt->buf) {
-        av_log(avctx, AV_LOG_ERROR, "No buffer returned by get_encode_buffer()\n");
+        spllog(4, "No buffer returned by get_encode_buffer()\n");
         ret = AVERROR(EINVAL);
         goto fail;
     }
@@ -127,7 +127,7 @@ int ff_get_encode_buffer(AVCodecContext *avctx, AVPacket *avpkt, int64_t size, i
     ret = 0;
 fail:
     if (ret < 0) {
-        av_log(avctx, AV_LOG_ERROR, "get_encode_buffer() failed\n");
+        spllog(4, "get_encode_buffer() failed\n");
         av_packet_unref(avpkt);
     }
 
@@ -193,7 +193,7 @@ int avcodec_encode_subtitle(AVCodecContext *avctx, uint8_t *buf, int buf_size,
 {
     int ret;
     if (sub->start_display_time) {
-        av_log(avctx, AV_LOG_ERROR, "start_display_time must be 0.\n");
+        spllog(4, "start_display_time must be 0.\n");
         return -1;
     }
 
@@ -446,7 +446,7 @@ static int encode_send_frame_internal(AVCodecContext *avctx, const AVFrame *src)
             /* if we already got an undersized frame, that must have been the last */
             if (ec->last_audio_frame) {
             #if 0
-                av_log(avctx, AV_LOG_ERROR, "frame_size (%d) was not respected for a non-last frame\n", avctx->frame_size);
+                spllog(4, "frame_size (%d) was not respected for a non-last frame\n", avctx->frame_size);
             #else
                spllog(4, "frame_size (%d) was not respected for a non-last frame\n", avctx->frame_size);     
             #endif
@@ -454,7 +454,7 @@ static int encode_send_frame_internal(AVCodecContext *avctx, const AVFrame *src)
             }
             if (src->nb_samples > avctx->frame_size) {
             #if 0
-                av_log(avctx, AV_LOG_ERROR, "nb_samples (%d) > frame_size (%d)\n", src->nb_samples, avctx->frame_size);
+                spllog(4, "nb_samples (%d) > frame_size (%d)\n", src->nb_samples, avctx->frame_size);
             #else
                 spllog(4, "nb_samples (%d) > frame_size (%d)\n", src->nb_samples, avctx->frame_size);
             #endif
@@ -572,7 +572,7 @@ static int encode_preinit_video(AVCodecContext *avctx)
     int ret, i, num_pix_fmts;
 
     if (!av_get_pix_fmt_name(avctx->pix_fmt)) {
-        av_log(avctx, AV_LOG_ERROR, "Invalid video pixel format: %d\n",
+        spllog(4, "Invalid video pixel format: %d\n",
                avctx->pix_fmt);
         return AVERROR(EINVAL);
     }
@@ -587,13 +587,13 @@ static int encode_preinit_video(AVCodecContext *avctx)
             if (avctx->pix_fmt == pix_fmts[i])
                 break;
         if (i == num_pix_fmts) {
-            av_log(avctx, AV_LOG_ERROR,
+            spllog(4,
                    "Specified pixel format %s is not supported by the %s encoder.\n",
                    av_get_pix_fmt_name(avctx->pix_fmt), c->name);
 
-            av_log(avctx, AV_LOG_ERROR, "Supported pixel formats:\n");
+            spllog(4, "Supported pixel formats:\n");
             for (int p = 0; pix_fmts[p] != AV_PIX_FMT_NONE; p++) {
-                av_log(avctx, AV_LOG_ERROR, "  %s\n",
+                spllog(4, "  %s\n",
                        av_get_pix_fmt_name(pix_fmts[p]));
             }
 
@@ -621,12 +621,12 @@ static int encode_preinit_video(AVCodecContext *avctx)
                     break;
             }
             if (i == num_alpha_modes) {
-                av_log(avctx, AV_LOG_ERROR,
+                spllog(4,
                        "Specified alpha mode '%s' is not supported by the %s encoder.\n",
                        av_alpha_mode_name(avctx->alpha_mode), c->name);
-                av_log(avctx, AV_LOG_ERROR, "Supported alpha modes:\n");
+                spllog(4, "Supported alpha modes:\n");
                 for (int p = 0; alpha_modes[p] != AVALPHA_MODE_UNSPECIFIED; p++) {
-                    av_log(avctx, AV_LOG_ERROR, "  %s\n",
+                    spllog(4, "  %s\n",
                            av_alpha_mode_name(alpha_modes[p]));
                 }
                 return AVERROR(EINVAL);
@@ -641,20 +641,20 @@ static int encode_preinit_video(AVCodecContext *avctx)
         avctx->bits_per_raw_sample = pixdesc->comp[0].depth;
     }
     if (avctx->width <= 0 || avctx->height <= 0) {
-        av_log(avctx, AV_LOG_ERROR, "dimensions not set\n");
+        spllog(4, "dimensions not set\n");
         return AVERROR(EINVAL);
     }
 
     if (avctx->hw_frames_ctx) {
         AVHWFramesContext *frames_ctx = (AVHWFramesContext*)avctx->hw_frames_ctx->data;
         if (frames_ctx->format != avctx->pix_fmt) {
-            av_log(avctx, AV_LOG_ERROR,
+            spllog(4,
                    "Mismatching AVCodecContext.pix_fmt and AVHWFramesContext.format\n");
             return AVERROR(EINVAL);
         }
         if (avctx->sw_pix_fmt != AV_PIX_FMT_NONE &&
             avctx->sw_pix_fmt != frames_ctx->sw_format) {
-            av_log(avctx, AV_LOG_ERROR,
+            spllog(4,
                    "Mismatching AVCodecContext.sw_pix_fmt (%s) "
                    "and AVHWFramesContext.sw_format (%s)\n",
                    av_get_pix_fmt_name(avctx->sw_pix_fmt),
@@ -676,7 +676,7 @@ static int encode_preinit_audio(AVCodecContext *avctx)
     int ret, i, num_sample_fmts, num_samplerates, num_ch_layouts;
 
     if (!av_get_sample_fmt_name(avctx->sample_fmt)) {
-        av_log(avctx, AV_LOG_ERROR, "Invalid audio sample format: %d\n",
+        spllog(4, "Invalid audio sample format: %d\n",
                avctx->sample_fmt);
         return AVERROR(EINVAL);
     }
@@ -698,13 +698,13 @@ static int encode_preinit_audio(AVCodecContext *avctx)
             }
         }
         if (i == num_sample_fmts) {
-            av_log(avctx, AV_LOG_ERROR,
+            spllog(4,
                    "Specified sample format %s is not supported by the %s encoder\n",
                    av_get_sample_fmt_name(avctx->sample_fmt), c->name);
 
-            av_log(avctx, AV_LOG_ERROR, "Supported sample formats:\n");
+            spllog(4, "Supported sample formats:\n");
             for (int p = 0; sample_fmts[p] != AV_SAMPLE_FMT_NONE; p++) {
-                av_log(avctx, AV_LOG_ERROR, "  %s\n",
+                spllog(4, "  %s\n",
                        av_get_sample_fmt_name(sample_fmts[p]));
             }
 
@@ -722,13 +722,13 @@ static int encode_preinit_audio(AVCodecContext *avctx)
             if (avctx->sample_rate == supported_samplerates[i])
                 break;
         if (i == num_samplerates) {
-            av_log(avctx, AV_LOG_ERROR,
+            spllog(4,
                    "Specified sample rate %d is not supported by the %s encoder\n",
                    avctx->sample_rate, c->name);
 
-            av_log(avctx, AV_LOG_ERROR, "Supported sample rates:\n");
+            spllog(4, "Supported sample rates:\n");
             for (int p = 0; supported_samplerates[p]; p++)
-                av_log(avctx, AV_LOG_ERROR, "  %d\n", supported_samplerates[p]);
+                spllog(4, "  %d\n", supported_samplerates[p]);
 
             return AVERROR(EINVAL);
         }
@@ -745,14 +745,14 @@ static int encode_preinit_audio(AVCodecContext *avctx)
         if (i == num_ch_layouts) {
             char buf[512];
             int ret = av_channel_layout_describe(&avctx->ch_layout, buf, sizeof(buf));
-            av_log(avctx, AV_LOG_ERROR,
+            spllog(4,
                    "Specified channel layout '%s' is not supported by the %s encoder\n",
                    ret > 0 ? buf : "?", c->name);
 
-            av_log(avctx, AV_LOG_ERROR, "Supported channel layouts:\n");
+            spllog(4, "Supported channel layouts:\n");
             for (int p = 0; ch_layouts[p].nb_channels; p++) {
                 ret = av_channel_layout_describe(&ch_layouts[p], buf, sizeof(buf));
-                av_log(avctx, AV_LOG_ERROR, "  %s\n", ret > 0 ? buf : "?");
+                spllog(4, "  %s\n", ret > 0 ? buf : "?");
             }
             return AVERROR(EINVAL);
         }
@@ -773,18 +773,18 @@ int ff_encode_preinit(AVCodecContext *avctx)
     int ret = 0;
 
     if (avctx->time_base.num <= 0 || avctx->time_base.den <= 0) {
-        av_log(avctx, AV_LOG_ERROR, "The encoder timebase is not set.\n");
+        spllog(4, "The encoder timebase is not set.\n");
         return AVERROR(EINVAL);
     }
 
     if (avctx->bit_rate < 0) {
-        av_log(avctx, AV_LOG_ERROR, "The encoder bitrate is negative.\n");
+        spllog(4, "The encoder bitrate is negative.\n");
         return AVERROR(EINVAL);
     }
 
     if (avctx->flags & AV_CODEC_FLAG_COPY_OPAQUE &&
         !(avctx->codec->capabilities & AV_CODEC_CAP_ENCODER_REORDERED_OPAQUE)) {
-        av_log(avctx, AV_LOG_ERROR, "The copy_opaque flag is set, but the "
+        spllog(4, "The copy_opaque flag is set, but the "
                "encoder does not support it.\n");
         return AVERROR(EINVAL);
     }
@@ -815,7 +815,7 @@ int ff_encode_preinit(AVCodecContext *avctx)
 
     if ((avctx->flags & AV_CODEC_FLAG_RECON_FRAME)) {
         if (!(avctx->codec->capabilities & AV_CODEC_CAP_ENCODER_RECON_FRAME)) {
-            av_log(avctx, AV_LOG_ERROR, "Reconstructed frame output requested "
+            spllog(4, "Reconstructed frame output requested "
                    "from an encoder not supporting it\n");
             return AVERROR(ENOSYS);
         }
@@ -883,7 +883,7 @@ int ff_encode_alloc_frame(AVCodecContext *avctx, AVFrame *frame)
 
     ret = avcodec_default_get_buffer2(avctx, frame, 0);
     if (ret < 0) {
-        av_log(avctx, AV_LOG_ERROR, "get_buffer() failed\n");
+        spllog(4, "get_buffer() failed\n");
         av_frame_unref(frame);
         return ret;
     }
@@ -960,7 +960,7 @@ int ff_check_codec_matrices(AVCodecContext *avctx, unsigned types, uint16_t min,
         if (matrix && (types & (1U << m))) {
             for (int i = 0; i < 64; i++) {
                 if (matrix[i] < min || matrix[i] > max) {
-                    av_log(avctx, AV_LOG_ERROR, "%s matrix[%d] is %d which is out of the allowed range [%"PRIu16"-%"PRIu16"].\n", names[m], i, matrix[i], min, max);
+                    spllog(4, "%s matrix[%d] is %d which is out of the allowed range [%"PRIu16"-%"PRIu16"].\n", names[m], i, matrix[i], min, max);
                     return AVERROR(EINVAL);
                 }
             }

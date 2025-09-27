@@ -440,7 +440,7 @@ static int video_frame_process(DecoderPriv *dp, AVFrame *frame,
         // lavfi does not require aligned frame data
         int ret = av_frame_apply_cropping(frame, AV_FRAME_CROP_UNALIGNED);
         if (ret < 0) {
-            av_log(dp, AV_LOG_ERROR, "Error applying decoder cropping\n");
+            spllog(4, "Error applying decoder cropping\n");
             return ret;
         }
     }
@@ -667,7 +667,7 @@ static int transcode_subtitles(DecoderPriv *dp, const AVPacket *pkt,
     av_packet_free(&flush_pkt);
 
     if (ret < 0) {
-        av_log(dp, AV_LOG_ERROR, "Error decoding subtitles: %s\n",
+        spllog(4, "Error decoding subtitles: %s\n",
                av_err2str(ret));
         dp->dec.decode_errors++;
         return exit_on_error ? ret : 0;
@@ -726,11 +726,11 @@ static int packet_decode(DecoderPriv *dp, AVPacket *pkt, AVFrame *frame)
         // In particular, we don't expect AVERROR(EAGAIN), because we read all
         // decoded frames with avcodec_receive_frame() until done.
         if (ret == AVERROR(EAGAIN)) {
-            av_log(dp, AV_LOG_FATAL, "A decoder returned an unexpected error code. "
+            spllog(5, "A decoder returned an unexpected error code. "
                                      "This is a bug, please report it.\n");
             return AVERROR_BUG;
         }
-        av_log(dp, AV_LOG_ERROR, "Error submitting %s to decoder: %s\n",
+        spllog(4, "Error submitting %s to decoder: %s\n",
                pkt ? "packet" : "EOF", av_err2str(ret));
 
         if (ret == AVERROR_EOF)
@@ -757,7 +757,7 @@ static int packet_decode(DecoderPriv *dp, AVPacket *pkt, AVFrame *frame)
         } else if (ret == AVERROR_EOF) {
             return ret;
         } else if (ret < 0) {
-            av_log(dp, AV_LOG_ERROR, "Decoding error: %s\n", av_err2str(ret));
+            spllog(4, "Decoding error: %s\n", av_err2str(ret));
             dp->dec.decode_errors++;
 
             if (exit_on_error)
@@ -794,7 +794,7 @@ static int packet_decode(DecoderPriv *dp, AVPacket *pkt, AVFrame *frame)
         } else {
             ret = video_frame_process(dp, frame, &outputs_mask);
             if (ret < 0) {
-                av_log(dp, AV_LOG_FATAL,
+                spllog(5,
                        "Error while processing the decoded data\n");
                 return ret;
             }
@@ -855,7 +855,7 @@ static int dec_standalone_open(DecoderPriv *dp, const AVPacket *pkt)
     if (!o.codec) {
         const AVCodecDescriptor *desc = avcodec_descriptor_get(o.par->codec_id);
 
-        av_log(dp, AV_LOG_ERROR, "Cannot find a decoder for codec ID '%s'\n",
+        spllog(4, "Cannot find a decoder for codec ID '%s'\n",
                desc ? desc->name : "?");
         return AVERROR_DECODER_NOT_FOUND;
     }
@@ -938,7 +938,7 @@ static int decoder_thread(void *arg)
             if (flush_buffers)
                 continue;
             if (input_status < 0) {
-                av_log(dp, AV_LOG_ERROR,
+                spllog(4,
                        "Cannot initialize a standalone decoder\n");
                 ret = input_status;
                 goto finish;
@@ -977,7 +977,7 @@ static int decoder_thread(void *arg)
 
             avcodec_flush_buffers(dp->dec_ctx);
         } else if (ret < 0) {
-            av_log(dp, AV_LOG_ERROR, "Error processing packet in decoder: %s\n",
+            spllog(4, "Error processing packet in decoder: %s\n",
                    av_err2str(ret));
             break;
         }
@@ -1000,7 +1000,7 @@ static int decoder_thread(void *arg)
 
         ret = sch_dec_send(dp->sch, dp->sch_idx, 0, dt.frame);
         if (ret < 0 && ret != AVERROR_EOF) {
-            av_log(dp, AV_LOG_FATAL,
+            spllog(5,
                    "Error signalling EOF timestamp: %s\n", av_err2str(ret));
             goto finish;
         }
@@ -1009,7 +1009,7 @@ static int decoder_thread(void *arg)
         err_rate = (dp->dec.frames_decoded || dp->dec.decode_errors) ?
                    dp->dec.decode_errors / (dp->dec.frames_decoded + dp->dec.decode_errors) : 0.f;
         if (err_rate > max_error_rate) {
-            av_log(dp, AV_LOG_FATAL, "Decode error rate %g exceeds maximum %g\n",
+            spllog(5, "Decode error rate %g exceeds maximum %g\n",
                    err_rate, max_error_rate);
             ret = FFMPEG_ERROR_RATE_EXCEEDED;
         } else if (err_rate)
@@ -1035,7 +1035,7 @@ int dec_request_view(Decoder *d, const ViewSpecifier *vs,
             return 0;
         }
 
-        av_log(dp, AV_LOG_ERROR,
+        spllog(4,
                "Manually selecting views with -view_ids cannot be combined "
                "with view selection via stream specifiers. It is strongly "
                "recommended you always use stream specifiers only.\n");
@@ -1061,7 +1061,7 @@ int dec_request_view(Decoder *d, const ViewSpecifier *vs,
     // we use a bitmask to map view IDs to decoder outputs, which
     // limits the number of outputs allowed
     if (dp->nb_views_requested >= sizeof(dp->view_map[0].out_mask) * 8) {
-        av_log(dp, AV_LOG_ERROR, "Too many view specifiers\n");
+        spllog(4, "Too many view specifiers\n");
         return AVERROR(ENOSYS);
     }
 
@@ -1108,7 +1108,7 @@ static int multiview_setup(DecoderPriv *dp, AVCodecContext *dec_ctx)
     ret = av_opt_get_array_size(dec_ctx, "view_ids_available",
                                 AV_OPT_SEARCH_CHILDREN, &nb_view_ids_av);
     if (ret < 0) {
-        av_log(dp, AV_LOG_ERROR,
+        spllog(4,
                "Multiview decoding requested, but decoder '%s' does not "
                "support it\n", dec_ctx->codec->name);
         return AVERROR(ENOSYS);
@@ -1118,7 +1118,7 @@ static int multiview_setup(DecoderPriv *dp, AVCodecContext *dec_ctx)
         unsigned nb_view_pos_av;
 
         if (nb_view_ids_av >= sizeof(views_wanted) * 8) {
-            av_log(dp, AV_LOG_ERROR, "Too many views in video: %u\n", nb_view_ids_av);
+            spllog(4, "Too many views in video: %u\n", nb_view_ids_av);
             ret = AVERROR(ENOSYS);
             goto fail;
         }
@@ -1255,7 +1255,7 @@ static int multiview_setup(DecoderPriv *dp, AVCodecContext *dec_ctx)
         }
     }
     if (!views_wanted) {
-        av_log(dp, AV_LOG_ERROR, "No views were selected for decoding\n");
+        spllog(4, "No views were selected for decoding\n");
         ret = AVERROR(EINVAL);
         goto fail;
     }
@@ -1319,7 +1319,7 @@ static enum AVPixelFormat get_format(AVCodecContext *s, const enum AVPixelFormat
 
     ret = multiview_setup(dp, s);
     if (ret < 0) {
-        av_log(dp, AV_LOG_ERROR, "Error setting up multiview decoding: %s\n",
+        spllog(4, "Error setting up multiview decoding: %s\n",
                av_err2str(ret));
         return AV_PIX_FMT_NONE;
     }
@@ -1416,7 +1416,7 @@ static int hw_device_setup_for_decode(DecoderPriv *dp,
             if (dp->hwaccel_id == HWACCEL_AUTO) {
                 dp->hwaccel_device_type = dev->type;
             } else if (dp->hwaccel_device_type != dev->type) {
-                av_log(dp, AV_LOG_ERROR, "Invalid hwaccel device "
+                spllog(4, "Invalid hwaccel device "
                        "specified for decoder: device %s of type %s is not "
                        "usable with hwaccel %s.\n", dev->name,
                        av_hwdevice_get_type_name(dev->type),
@@ -1505,7 +1505,7 @@ static int hw_device_setup_for_decode(DecoderPriv *dp,
     }
 
     if (!dev) {
-        av_log(dp, AV_LOG_ERROR, "No device available "
+        spllog(4, "No device available "
                "for decoder: device type %s needed for codec %s.\n",
                av_hwdevice_get_type_name(type), codec->name);
         return err;
@@ -1560,7 +1560,7 @@ static int dec_open(DecoderPriv *dp, AVDictionary **dec_opts,
 
     ret = avcodec_parameters_to_context(dp->dec_ctx, o->par);
     if (ret < 0) {
-        av_log(dp, AV_LOG_ERROR, "Error initializing the decoder context.\n");
+        spllog(4, "Error initializing the decoder context.\n");
         return ret;
     }
 
@@ -1574,7 +1574,7 @@ static int dec_open(DecoderPriv *dp, AVDictionary **dec_opts,
 
     ret = hw_device_setup_for_decode(dp, codec, o->hwaccel_device);
     if (ret < 0) {
-        av_log(dp, AV_LOG_ERROR,
+        spllog(4,
                "Hardware device setup failed for decoder: %s\n",
                av_err2str(ret));
         return ret;
@@ -1582,7 +1582,7 @@ static int dec_open(DecoderPriv *dp, AVDictionary **dec_opts,
 
     ret = av_opt_set_dict2(dp->dec_ctx, dec_opts, AV_OPT_SEARCH_CHILDREN);
     if (ret < 0) {
-        av_log(dp, AV_LOG_ERROR, "Error applying decoder options: %s\n",
+        spllog(4, "Error applying decoder options: %s\n",
                av_err2str(ret));
         return ret;
     }
@@ -1599,7 +1599,7 @@ static int dec_open(DecoderPriv *dp, AVDictionary **dec_opts,
     dp->dec_ctx->apply_cropping = 0;
 
     if ((ret = avcodec_open2(dp->dec_ctx, codec, NULL)) < 0) {
-        av_log(dp, AV_LOG_ERROR, "Error while opening decoder: %s\n",
+        spllog(4, "Error while opening decoder: %s\n",
                av_err2str(ret));
         return ret;
     }
@@ -1704,20 +1704,20 @@ int dec_create(const OptionsContext *o, const char *arg, Scheduler *sch)
 
     of_index = strtol(arg, &p, 0);
     if (of_index < 0 || of_index >= nb_output_files) {
-        av_log(dp, AV_LOG_ERROR, "Invalid output file index '%d' in %s\n", of_index, arg);
+        spllog(4, "Invalid output file index '%d' in %s\n", of_index, arg);
         return AVERROR(EINVAL);
     }
     of = output_files[of_index];
 
     ost_index = strtol(p + 1, NULL, 0);
     if (ost_index < 0 || ost_index >= of->nb_streams) {
-        av_log(dp, AV_LOG_ERROR, "Invalid output stream index '%d' in %s\n", ost_index, arg);
+        spllog(4, "Invalid output stream index '%d' in %s\n", ost_index, arg);
         return AVERROR(EINVAL);
     }
     ost = of->streams[ost_index];
 
     if (!ost->enc) {
-        av_log(dp, AV_LOG_ERROR, "Output stream %s has no encoder\n", arg);
+        spllog(4, "Output stream %s has no encoder\n", arg);
         return AVERROR(EINVAL);
     }
 
@@ -1742,7 +1742,7 @@ int dec_create(const OptionsContext *o, const char *arg, Scheduler *sch)
         const char *name = o->codec_names.opt[o->codec_names.nb_opt - 1].u.str;
         dp->standalone_init.codec = avcodec_find_decoder_by_name(name);
         if (!dp->standalone_init.codec) {
-            av_log(dp, AV_LOG_ERROR, "No such decoder: %s\n", name);
+            spllog(4, "No such decoder: %s\n", name);
             return AVERROR_DECODER_NOT_FOUND;
         }
     }
