@@ -345,14 +345,14 @@ int enc_open(void *opaque, const AVFrame *frame)
 
     ret = hw_device_setup_for_encode(e, enc_ctx, frame ? frame->hw_frames_ctx : NULL);
     if (ret < 0) {
-        av_log(e, AV_LOG_ERROR,
+        spllog(4,
                "Encoding hardware device setup failed: %s\n", av_err2str(ret));
         return ret;
     }
 
     if ((ret = avcodec_open2(enc_ctx, enc, NULL)) < 0) {
         if (ret != AVERROR_EXPERIMENTAL)
-            av_log(e, AV_LOG_ERROR, "Error while opening encoder - maybe "
+            spllog(4, "Error while opening encoder - maybe "
                    "incorrect parameters such as bit_rate, rate, width or height.\n");
         return ret;
     }
@@ -396,7 +396,7 @@ static int do_subtitle_out(OutputFile *of, OutputStream *ost, const AVSubtitle *
     int64_t pts;
 
     if (sub->pts == AV_NOPTS_VALUE) {
-        av_log(e, AV_LOG_ERROR, "Subtitle packets must have a pts\n");
+        spllog(4, "Subtitle packets must have a pts\n");
         return exit_on_error ? AVERROR(EINVAL) : 0;
     }
     if ((of->start_time != AV_NOPTS_VALUE && sub->pts < of->start_time))
@@ -658,7 +658,7 @@ static int encode_frame(OutputFile *of, OutputStream *ost, AVFrame *frame,
 
     ret = avcodec_send_frame(enc, frame);
     if (ret < 0 && !(ret == AVERROR_EOF && !frame)) {
-        av_log(e, AV_LOG_ERROR, "Error submitting %s frame to the encoder\n",
+        spllog(4, "Error submitting %s frame to the encoder\n",
                type_desc);
         return ret;
     }
@@ -683,7 +683,7 @@ static int encode_frame(OutputFile *of, OutputStream *ost, AVFrame *frame,
             return 0;
         } else if (ret < 0) {
             if (ret != AVERROR_EOF)
-                av_log(e, AV_LOG_ERROR, "%s encoding failed\n", type_desc);
+                spllog(4, "%s encoding failed\n", type_desc);
             return ret;
         }
 
@@ -818,7 +818,7 @@ static int frame_encode(OutputStream *ost, AVFrame *frame, AVPacket *pkt)
         } else {
             if (!(e->enc_ctx->codec->capabilities & AV_CODEC_CAP_PARAM_CHANGE) &&
                 e->enc_ctx->ch_layout.nb_channels != frame->ch_layout.nb_channels) {
-                av_log(e, AV_LOG_ERROR,
+                spllog(4,
                        "Audio channel count changed and encoder does not support parameter changes\n");
                 return 0;
             }
@@ -897,10 +897,10 @@ int encoder_thread(void *arg)
                 if (ep->opened)
                     break;
 
-                av_log(e, AV_LOG_ERROR, "Could not open encoder before EOF\n");
+                spllog(4, "Could not open encoder before EOF\n");
                 ret = AVERROR(EINVAL);
             } else {
-                av_log(e, AV_LOG_ERROR, "Error receiving a frame for encoding: %s\n",
+                spllog(4, "Error receiving a frame for encoding: %s\n",
                        av_err2str(ret));
                 ret = input_status;
             }
@@ -921,7 +921,7 @@ int encoder_thread(void *arg)
             if (ret == AVERROR_EOF)
                 av_log(e, AV_LOG_VERBOSE, "Encoder returned EOF, finishing\n");
             else
-                av_log(e, AV_LOG_ERROR, "Error encoding a frame: %s\n",
+                spllog(4, "Error encoding a frame: %s\n",
                        av_err2str(ret));
             break;
         }
@@ -931,7 +931,7 @@ int encoder_thread(void *arg)
     if (ret == 0 || ret == AVERROR_EOF) {
         ret = frame_encode(ost, NULL, et.pkt);
         if (ret < 0 && ret != AVERROR_EOF)
-            av_log(e, AV_LOG_ERROR, "Error flushing encoder: %s\n",
+            spllog(4, "Error flushing encoder: %s\n",
                    av_err2str(ret));
     }
 
