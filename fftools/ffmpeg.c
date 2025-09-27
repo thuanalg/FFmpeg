@@ -182,7 +182,7 @@ static BOOL WINAPI CtrlHandler(DWORD fdwCtrlType)
         return TRUE;
 
     default:
-        av_log(NULL, AV_LOG_ERROR, "Received unknown windows signal %ld\n", fdwCtrlType);
+        spllog(4, "Received unknown windows signal %ld\n", fdwCtrlType);
         return FALSE;
     }
 }
@@ -314,7 +314,7 @@ static void ffmpeg_cleanup(int ret)
 
     if (do_benchmark) {
         int64_t maxrss = getmaxrss() / 1024;
-        av_log(NULL, AV_LOG_INFO, "bench: maxrss=%"PRId64"KiB\n", maxrss);
+        spllog(2, "bench: maxrss=%"PRId64"KiB\n", maxrss);
     }
 
     for (int i = 0; i < nb_filtergraphs; i++)
@@ -333,7 +333,7 @@ static void ffmpeg_cleanup(int ret)
 
     if (vstats_file) {
         if (fclose(vstats_file))
-            av_log(NULL, AV_LOG_ERROR,
+            spllog(4,
                    "Error closing vstats file, loss of information possible: %s\n",
                    av_err2str(AVERROR(errno)));
     }
@@ -355,10 +355,10 @@ static void ffmpeg_cleanup(int ret)
     avformat_network_deinit();
 
     if (received_sigterm) {
-        av_log(NULL, AV_LOG_INFO, "Exiting normally, received signal %d.\n",
+        spllog(2, "Exiting normally, received signal %d.\n",
                (int) received_sigterm);
     } else if (ret && atomic_load(&transcode_init_done)) {
-        av_log(NULL, AV_LOG_INFO, "Conversion failed!\n");
+        spllog(2, "Conversion failed!\n");
     }
     term_exit();
     ffmpeg_exited = 1;
@@ -542,7 +542,7 @@ void update_benchmark(const char *fmt, ...)
             va_start(va, fmt);
             vsnprintf(buf, sizeof(buf), fmt, va);
             va_end(va);
-            av_log(NULL, AV_LOG_INFO,
+            spllog(2,
                    "bench: %8" PRIu64 " user %8" PRIu64 " sys %8" PRIu64 " real %s \n",
                    t.user_usec - current_time.user_usec,
                    t.sys_usec - current_time.sys_usec,
@@ -691,7 +691,7 @@ static void print_report(int is_last_report, int64_t timer_start, int64_t cur_ti
         if (print_stats==1 && AV_LOG_INFO > av_log_get_level()) {
             fprintf(stderr, "%s    %c", buf.str, end);
         } else
-            av_log(NULL, AV_LOG_INFO, "%s    %c", buf.str, end);
+            spllog(2, "%s    %c", buf.str, end);
 
         fflush(stderr);
     }
@@ -706,7 +706,7 @@ static void print_report(int is_last_report, int64_t timer_start, int64_t cur_ti
         av_bprint_finalize(&buf_script, NULL);
         if (is_last_report) {
             if ((ret = avio_closep(&progress_avio)) < 0)
-                av_log(NULL, AV_LOG_ERROR,
+                spllog(4,
                        "Error closing progress log, loss of information possible: %s\n", av_err2str(ret));
         }
     }
@@ -716,16 +716,16 @@ static void print_report(int is_last_report, int64_t timer_start, int64_t cur_ti
 
 static void print_stream_maps(void)
 {
-    av_log(NULL, AV_LOG_INFO, "Stream mapping:\n");
+    spllog(2, "Stream mapping:\n");
     for (InputStream *ist = ist_iter(NULL); ist; ist = ist_iter(ist)) {
         for (int j = 0; j < ist->nb_filters; j++) {
             if (!filtergraph_is_simple(ist->filters[j]->graph)) {
-                av_log(NULL, AV_LOG_INFO, "  Stream #%d:%d (%s) -> %s",
+                spllog(2, "  Stream #%d:%d (%s) -> %s",
                        ist->file->index, ist->index, ist->dec ? ist->dec->name : "?",
                        ist->filters[j]->name);
                 if (nb_filtergraphs > 1)
-                    av_log(NULL, AV_LOG_INFO, " (graph %d)", ist->filters[j]->graph->index);
-                av_log(NULL, AV_LOG_INFO, "\n");
+                    spllog(2, " (graph %d)", ist->filters[j]->graph->index);
+                spllog(2, "\n");
             }
         }
     }
@@ -733,23 +733,23 @@ static void print_stream_maps(void)
     for (OutputStream *ost = ost_iter(NULL); ost; ost = ost_iter(ost)) {
         if (ost->attachment_filename) {
             /* an attached file */
-            av_log(NULL, AV_LOG_INFO, "  File %s -> Stream #%d:%d\n",
+            spllog(2, "  File %s -> Stream #%d:%d\n",
                    ost->attachment_filename, ost->file->index, ost->index);
             continue;
         }
 
         if (ost->filter && !filtergraph_is_simple(ost->filter->graph)) {
             /* output from a complex graph */
-            av_log(NULL, AV_LOG_INFO, "  %s", ost->filter->name);
+            spllog(2, "  %s", ost->filter->name);
             if (nb_filtergraphs > 1)
-                av_log(NULL, AV_LOG_INFO, " (graph %d)", ost->filter->graph->index);
+                spllog(2, " (graph %d)", ost->filter->graph->index);
 
-            av_log(NULL, AV_LOG_INFO, " -> Stream #%d:%d (%s)\n", ost->file->index,
+            spllog(2, " -> Stream #%d:%d (%s)\n", ost->file->index,
                    ost->index, ost->enc->enc_ctx->codec->name);
             continue;
         }
 
-        av_log(NULL, AV_LOG_INFO, "  Stream #%d:%d -> #%d:%d",
+        spllog(2, "  Stream #%d:%d -> #%d:%d",
                ost->ist->file->index,
                ost->ist->index,
                ost->file->index,
@@ -781,12 +781,12 @@ static void print_stream_maps(void)
                     encoder_name = "native";
             }
 
-            av_log(NULL, AV_LOG_INFO, " (%s (%s) -> %s (%s))",
+            spllog(2, " (%s (%s) -> %s (%s))",
                    in_codec_name, decoder_name,
                    out_codec_name, encoder_name);
         } else
-            av_log(NULL, AV_LOG_INFO, " (copy)");
-        av_log(NULL, AV_LOG_INFO, "\n");
+            spllog(2, " (copy)");
+        spllog(2, "\n");
     }
 }
 
@@ -813,7 +813,7 @@ static int check_keyboard_interaction(int64_t cur_time)
     }else
         key = -1;
     if (key == 'q') {
-        av_log(NULL, AV_LOG_INFO, "\n\n[q] command received. Exiting.\n\n");
+        spllog(2, "\n\n[q] command received. Exiting.\n\n");
         return AVERROR_EXIT;
     }
     if (key == '+') av_log_set_level(av_log_get_level()+10);
@@ -844,7 +844,7 @@ static int check_keyboard_interaction(int64_t cur_time)
                 fg_send_command(filtergraphs[i], time, target, command, arg,
                                 key == 'C');
         } else {
-            av_log(NULL, AV_LOG_ERROR,
+            spllog(4,
                    "Parse error, at least 3 arguments were expected, "
                    "only %d given in string '%s'\n", n, buf);
         }
@@ -881,7 +881,7 @@ static int transcode(Scheduler *sch)
         return ret;
 
     if (stdin_interaction) {
-        av_log(NULL, AV_LOG_INFO, "Press [q] to stop, [?] for help\n");
+        spllog(2, "Press [q] to stop, [?] for help\n");
     }
 
     timer_start = av_gettime_relative();
@@ -1004,7 +1004,7 @@ int main(int argc, char **argv)
 
     if (nb_output_files <= 0 && nb_input_files == 0) {
         show_usage();
-        av_log(NULL, AV_LOG_WARNING, "Use -h to get full help or, even better, run 'man %s'\n", program_name);
+        spllog(3, "Use -h to get full help or, even better, run 'man %s'\n", program_name);
         ret = 1;
         goto finish;
     }
@@ -1023,7 +1023,7 @@ int main(int argc, char **argv)
         utime = current_time.user_usec - ti.user_usec;
         stime = current_time.sys_usec  - ti.sys_usec;
         rtime = current_time.real_usec - ti.real_usec;
-        av_log(NULL, AV_LOG_INFO,
+        spllog(2,
                "bench: utime=%0.3fs stime=%0.3fs rtime=%0.3fs\n",
                utime / 1000000.0, stime / 1000000.0, rtime / 1000000.0);
     }
