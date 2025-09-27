@@ -709,7 +709,7 @@ int attribute_align_arg avcodec_receive_frame(AVCodecContext *avctx, AVFrame *fr
 {
     int ret = 0;
     av_frame_unref(frame);
-    spllog(1, "avcodecctx: 0x%p, AVCodecContext->frame_num: %d, codec: %d, AVFrame", 
+    spllog(1, "cctx: 0x%p, cctx->frame_num: %d, codec: %d, AVFrame", 
         avctx,
         avctx ? avctx->frame_num : -1, 
         avctx ? (avctx->codec_id) : -1 );

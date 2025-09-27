@@ -347,8 +347,12 @@ static int encode_simple_receive_packet(AVCodecContext *avctx, AVPacket *avpkt)
 static int encode_receive_packet_internal(AVCodecContext *avctx, AVPacket *avpkt)
 {
     AVCodecInternal *avci = avctx->internal;
-    int ret;
-    spllog(1, "AVCodecContext, AVPacket");
+    int ret = 0;
+
+    spllog(1, "cctx codec_id: %d, pkt::size: %d", 
+        avctx ? avctx->codec_id : -1, 
+        avpkt ? avpkt->size : -1);
+
     if (avci->draining_done)
         return AVERROR_EOF;
 
@@ -544,9 +548,10 @@ int attribute_align_arg avcodec_receive_packet(AVCodecContext *avctx, AVPacket *
     AVCodecInternal *avci = avctx->internal;
     int ret = 0;
 
-    spllog(1, "AVCodecContext: 0x%p, AVPacket::st_i: %d", 
+    spllog(1, "cctx: 0x%p, pkt::st_i: %d, size: %d", 
         avctx, 
-        avpkt ? avpkt->stream_index : -1);
+        avpkt ? avpkt->stream_index : -1, 
+        avpkt ? avpkt->size : -1);
 
     av_packet_unref(avpkt);
 
