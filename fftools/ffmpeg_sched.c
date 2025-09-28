@@ -1802,8 +1802,16 @@ finish:
 
 static int send_to_enc(Scheduler *sch, SchEnc *enc, AVFrame *frame)
 {
+    int ret = 0;
     if (enc->open_cb && frame && !enc->opened) {
-        int ret = enc_open(sch, enc, frame);
+        spllog(1, "0-c frame linesize[0]: %d", 
+            frame ? frame->linesize[0] : -1 );  
+
+        ret = enc_open(sch, enc, frame);
+
+        spllog(1, "1-c frame linesize[0]: %d", 
+            frame ? frame->linesize[0] : -1 );  
+
         if (ret < 0)
             return ret;
         enc->opened = 1;
@@ -1814,10 +1822,23 @@ static int send_to_enc(Scheduler *sch, SchEnc *enc, AVFrame *frame)
             return 0;
         }
     }
+#if 1
 
+    spllog(1, "0-d frame linesize[0]: %d", 
+            frame ? frame->linesize[0] : -1 );  
+
+    ret = (enc->sq_idx[0] >= 0)  ?
+           send_to_enc_sq    (sch, enc, frame)  :
+           send_to_enc_thread(sch, enc, frame);
+
+    spllog(1, "1-d frame linesize[0]: %d", 
+            frame ? frame->linesize[0] : -1 ); 
+    return ret;
+#else           
     return (enc->sq_idx[0] >= 0)                ?
            send_to_enc_sq    (sch, enc, frame)  :
            send_to_enc_thread(sch, enc, frame);
+#endif
 }
 
 static int mux_queue_packet(SchMux *mux, SchMuxStream *ms, AVPacket *pkt)
@@ -2186,8 +2207,17 @@ int sch_dec_receive(Scheduler *sch, unsigned dec_idx, AVPacket *pkt)
 static int send_to_filter(Scheduler *sch, SchFilterGraph *fg,
                           unsigned in_idx, AVFrame *frame)
 {
-    if (frame)
-        return tq_send(fg->queue, in_idx, frame);
+    int ret = 0;
+    if (frame) {
+        spllog(1, "0-r frame linesize[0]: %d", 
+            frame ? frame->linesize[0] : -1 );  
+
+        ret = tq_send(fg->queue, in_idx, frame);
+
+        spllog(1, "1-r frame linesize[0]: %d", 
+            frame ? frame->linesize[0] : -1 );          
+        return ret;
+    }
 
     if (!fg->inputs[in_idx].send_finished) {
         fg->inputs[in_idx].send_finished = 1;
@@ -2211,9 +2241,16 @@ static int dec_send_to_dst(Scheduler *sch, const SchedulerNode dst,
     if (!frame)
         goto finish;
 
+    spllog(1, "0 frame linesize[0]: %d", 
+            frame ? frame->linesize[0] : -1 );  
+
     ret = (dst.type == SCH_NODE_TYPE_FILTER_IN) ?
           send_to_filter(sch, &sch->filters[dst.idx], dst.idx_stream, frame) :
           send_to_enc(sch, &sch->enc[dst.idx], frame);
+
+    spllog(1, "1 frame linesize[0]: %d", 
+            frame ? frame->linesize[0] : -1 );  
+
     if (ret == AVERROR_EOF)
         goto finish;
 
@@ -2260,7 +2297,14 @@ int sch_dec_send(Scheduler *sch, unsigned dec_idx,
                 return ret;
         }
 
+        spllog(1, "2 to_send linesize[0]: %d", 
+            to_send ? to_send->linesize[0] : -1 );
+
         ret = dec_send_to_dst(sch, o->dst[i], finished, to_send);
+
+        spllog(1, "3 to_send linesize[0]: %d", 
+            to_send ? to_send->linesize[0] : -1 );      
+
         if (ret < 0) {
             av_frame_unref(to_send);
             if (ret == AVERROR_EOF) {
