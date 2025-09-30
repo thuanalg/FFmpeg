@@ -3120,8 +3120,8 @@ static int filter_thread(void *arg)
 
         input_status = sch_filter_receive(fgp->sch, fgp->sch_idx,
                                           &input_idx, fgt.frame);
-                                          
-        spllog(1, "fgt.frame(w, h)=(%d, %d)", 
+
+        spllog(1, "thread-loop fgt.frame(w, h)=(%d, %d)", 
             fgt.frame ? fgt.frame->width : -1, 
             fgt.frame ? fgt.frame->height : -1);         
 
