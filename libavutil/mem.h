@@ -127,7 +127,11 @@
 		}                                                              \
 	}
 void *av_malloc(size_t size) av_malloc_attrib av_alloc_size(1);
-
+#ifndef spl_writef
+#define spl_writef(__nb__, __ptr__, __sz__, __ne__,  __fp__) { \
+	(__nb__) = fwrite((__ptr__), (__sz__), (__ne__), (__fp__)); spllog(1, "__nb__: %d.", (int)(__nb__));\
+}
+#endif
 /**
  * Allocate a memory block with alignment suitable for all memory accesses
  * (including vectors if available on the CPU) and zero all the bytes of the

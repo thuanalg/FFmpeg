@@ -1177,8 +1177,8 @@ int av_write_frame(AVFormatContext *s, AVPacket *in)
 {
     FFFormatContext *const si = ffformatcontext(s);
     AVPacket *pkt = si->parse_pkt;
-    int ret;
-
+    int ret = 0;
+    spllog(1, "AVPacket *in::size: %d", in->size);
     if (!in) {
         if (ffofmt(s->oformat)->flags_internal & FF_OFMT_FLAG_ALLOW_FLUSH) {
             ret = ffofmt(s->oformat)->write_packet(s, NULL);

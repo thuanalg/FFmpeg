@@ -40,6 +40,7 @@ static void encode(AVCodecContext *enc_ctx, AVFrame *frame, AVPacket *pkt,
                    FILE *outfile)
 {
     int ret;
+    int nw = 0;
 
     /* send the frame to the encoder */
     if (frame)
@@ -61,7 +62,7 @@ static void encode(AVCodecContext *enc_ctx, AVFrame *frame, AVPacket *pkt,
         }
 
         printf("Write packet %3"PRId64" (size=%5d)\n", pkt->pts, pkt->size);
-        fwrite(pkt->data, 1, pkt->size, outfile);
+        nw = fwrite(pkt->data, 1, pkt->size, outfile);
         av_packet_unref(pkt);
     }
 }
