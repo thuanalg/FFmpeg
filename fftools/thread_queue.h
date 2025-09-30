@@ -52,7 +52,18 @@ void         tq_free(ThreadQueue **tq);
  * - AVERROR(EINVAL) the sending side has previously been marked as finished
  * - AVERROR_EOF the receiving side has marked the given stream as finished
  */
-int tq_send(ThreadQueue *tq, unsigned int stream_idx, void *data);
+
+#ifndef __FFWR_TYPE_DT__
+#define __FFWR_TYPE_DT__
+typedef enum {
+    FFWR_AVFRAME,
+    FFWR_AVPACKET,
+
+    FFWR_UNKNOWN,
+    FFWR_AVEND
+} FFWR_TYPE_DT;
+#endif 
+int tq_send(ThreadQueue *tq, unsigned int stream_idx, void *data, FFWR_TYPE_DT tyype);
 /**
  * Mark the given stream finished from the sending side.
  */

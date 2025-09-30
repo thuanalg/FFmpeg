@@ -517,6 +517,10 @@ int attribute_align_arg avcodec_send_frame(AVCodecContext *avctx, const AVFrame 
         frame ? frame->height : -1,
         frame ? frame->linesize[0] : -1);
 
+    if(frame && frame->width > 0) {
+        int a = 0;
+    }
+
     if (!avcodec_is_open(avctx) || !av_codec_is_encoder(avctx->codec))
         return AVERROR(EINVAL);
 

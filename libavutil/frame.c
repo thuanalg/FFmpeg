@@ -525,10 +525,18 @@ void av_frame_move_ref(AVFrame *dst, AVFrame *src)
     av_assert1(dst->width == 0 && dst->height == 0);
     av_assert1(dst->ch_layout.nb_channels == 0 &&
                dst->ch_layout.order == AV_CHANNEL_ORDER_UNSPEC);
+               
+    spllog(1, "0x%p, 0-x dst-frame linesize[0]: %d, "
+        "0x%p, 0-x src-frame linesize[0]: %d", 
+        dst,
+        dst ? dst->linesize[0] : -1,
+        src,
+        src ? src->linesize[0] : -1);
 
     *dst = *src;
     if (src->extended_data == src->data)
         dst->extended_data = dst->data;
+
     get_frame_defaults(src);
 }
 

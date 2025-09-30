@@ -715,22 +715,32 @@ int attribute_align_arg avcodec_receive_frame(AVCodecContext *avctx, AVFrame *fr
         spllog(4, "AVERROR(EINVAL)");
         return AVERROR(EINVAL);
     }
-
+    
     if (ff_codec_is_decoder(avctx->codec)) {
         ret = ff_decode_receive_frame(avctx, frame);
-        spllog(1, "cctx: 0x%p, cctx->frame_num: %d, codec: %d, AVFrame::sample_rate: %d", 
-            avctx,
+        spllog(1, "c(w,h): (%d, %d), (w,h): (%d, %d), "
+            "cctx->frame_num: %d, codec: %d, linesize[0]: %d", 
+            avctx ? avctx->width : -1, 
+            avctx ? avctx->height : -1,
+            frame ? frame->width : -1, 
+            frame ? frame->height : -1,            
             avctx ? avctx->frame_num : -1, 
             avctx ? (avctx->codec_id) : -1, 
-            frame ? frame->sample_rate : -1 );        
+            frame ? frame->sample_rate : -1, 
+            frame ? frame->linesize[0] : -1);        
         return ret;
     }
     ret = ff_encode_receive_frame(avctx, frame);
-    spllog(1, "cctx: 0x%p, cctx->frame_num: %d, codec: %d, AVFrame::sample_rate: %d", 
-        avctx,
+    spllog(1, "c(w,h): (%d, %d), (w,h): (%d, %d), "
+        "cctx->frame_num: %d, codec: %d, linesize[0]: %d", 
+        avctx ? avctx->width : -1, 
+        avctx ? avctx->height : -1,
+        frame ? frame->width : -1, 
+        frame ? frame->height : -1,            
         avctx ? avctx->frame_num : -1, 
         avctx ? (avctx->codec_id) : -1, 
-        frame ? frame->sample_rate : -1 );    
+        frame ? frame->sample_rate : -1, 
+        frame ? frame->linesize[0] : -1);         
     return ret;
 }
 

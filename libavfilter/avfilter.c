@@ -1108,6 +1108,9 @@ int ff_filter_frame(AVFilterLink *link, AVFrame *frame)
     li->l.frame_count_in++;
     li->l.sample_count_in += frame->nb_samples;
     filter_unblock(link->dst);
+    spllog(1, "frame(w,h)=(%d, %d)", 
+        frame ? frame->width: -1, 
+        frame ? frame->height: -1);    
     ret = ff_framequeue_add(&li->fifo, frame);
     if (ret < 0) {
         av_frame_free(&frame);
@@ -1141,6 +1144,11 @@ static int take_samples(FilterLinkInternal *li, unsigned min, unsigned max,
        called with enough samples. */
     av_assert1(samples_ready(li, l->min_samples));
     frame0 = frame = ff_framequeue_peek(&li->fifo, 0);
+
+    spllog(1, "+++frame(w, h)=(%d, %d)", 
+        frame? frame->width : -1,  
+        frame? frame->height : -1);
+
     if (!li->fifo.samples_skipped && frame->nb_samples >= min && frame->nb_samples <= max) {
         *rframe = ff_framequeue_take(&li->fifo);
         return 0;
@@ -1500,6 +1508,9 @@ int ff_inlink_check_available_samples(AVFilterLink *link, unsigned min)
     FilterLinkInternal * const li = ff_link_internal(link);
     uint64_t samples = ff_framequeue_queued_samples(&li->fifo);
     av_assert1(min);
+
+    spllog(1, "link(w,h)=(%d, %d)", link? link->w : -1, link? link->h : -1);
+
     return samples >= min || (li->status_in && samples);
 }
 
@@ -1518,14 +1529,23 @@ int ff_inlink_consume_frame(AVFilterLink *link, AVFrame **rframe)
 {
     FilterLinkInternal * const li = ff_link_internal(link);
     AVFrame *frame;
+    int ret = 0;
 
     *rframe = NULL;
+    ret = 0;
+#if 0    
     if (!ff_inlink_check_available_frame(link))
         return 0;
-
+#else
+    ret = ff_inlink_check_available_frame(link);
+    if(!ret) {
+        return ret;
+    }
+#endif
     if (li->fifo.samples_skipped) {
         frame = ff_framequeue_peek(&li->fifo, 0);
-        return ff_inlink_consume_samples(link, frame->nb_samples, frame->nb_samples, rframe);
+        ret = ff_inlink_consume_samples(link, frame->nb_samples, frame->nb_samples, rframe);
+        return ret;
     }
 
     frame = ff_framequeue_take(&li->fifo);
@@ -1539,12 +1559,19 @@ int ff_inlink_consume_samples(AVFilterLink *link, unsigned min, unsigned max,
 {
     FilterLinkInternal * const li = ff_link_internal(link);
     AVFrame *frame;
-    int ret;
+    int ret = 0;
 
     av_assert1(min);
     *rframe = NULL;
+#if 0    
     if (!ff_inlink_check_available_samples(link, min))
         return 0;
+#else        
+    ret = ff_inlink_check_available_samples(link, min);
+    if(!ret) {
+        return ret;
+    }
+#endif        
     if (li->status_in)
         min = FFMIN(min, ff_framequeue_queued_samples(&li->fifo));
     ret = take_samples(li, min, max, &frame);

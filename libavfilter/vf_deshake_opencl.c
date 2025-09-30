@@ -1727,7 +1727,7 @@ static int queue_frame(AVFilterLink *link, AVFrame *input_frame)
 {
     AVFilterContext *avctx = link->dst;
     DeshakeOpenCLContext *deshake_ctx = avctx->priv;
-    int err;
+    int err = 0;
     int num_vectors;
     int num_inliers = 0;
     cl_int cle;
@@ -1993,9 +1993,15 @@ end:
     for (int i = 0; i < RingbufCount; i++) {
         av_fifo_write(deshake_ctx->abs_motion.ringbuffers[i], &new_vals[i], 1);
     }
-
+#if 1  
+    spllog(1, "frame(w,h)=(%d, %d)", 
+        frame ? frame->width: -1, 
+        frame ? frame->height: -1);  
+    err = ff_framequeue_add(&deshake_ctx->fq, input_frame);
+    return err;
+#else    
     return ff_framequeue_add(&deshake_ctx->fq, input_frame);
-
+#endif
 fail:
     clFinish(deshake_ctx->command_queue);
     av_frame_free(&input_frame);

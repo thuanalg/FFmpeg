@@ -115,7 +115,7 @@ static int get_frame_internal(AVFilterContext *ctx, AVFrame *frame, int flags, i
     BufferSinkContext *buf = ctx->priv;
     AVFilterLink *inlink = ctx->inputs[0];
     FilterLinkInternal *li = ff_link_internal(inlink);
-    int status, ret;
+    int status, ret = 0;;
     AVFrame *cur_frame;
     int64_t pts;
     int buffersrc_empty = 0;
@@ -126,11 +126,20 @@ static int get_frame_internal(AVFilterContext *ctx, AVFrame *frame, int flags, i
     while (1) {
         ret = samples ? ff_inlink_consume_samples(inlink, samples, samples, &cur_frame) :
                         ff_inlink_consume_frame(inlink, &cur_frame);
+        spllog(1, "+++cur_frame(w,h)=(%d, %d), samples : %d", 
+            (cur_frame ? cur_frame->width : -1), 
+            (cur_frame ? cur_frame->height : -1), 
+            samples);                        
         if (ret < 0) {
             return ret;
         } else if (ret) {
             /* TODO return the frame instead of copying it */
+#if 0            
             return return_or_keep_frame(buf, frame, cur_frame, flags);
+#else
+            ret = return_or_keep_frame(buf, frame, cur_frame, flags);
+            break;            
+#endif            
         } else if (ff_inlink_acknowledge_status(inlink, &status, &pts)) {
             return status;
         } else if ((flags & AV_BUFFERSINK_FLAG_NO_REQUEST)) {
@@ -150,6 +159,7 @@ static int get_frame_internal(AVFilterContext *ctx, AVFrame *frame, int flags, i
             ff_inlink_request_frame(inlink);
         }
     }
+    return ret;
 }
 
 int attribute_align_arg av_buffersink_get_frame_flags(AVFilterContext *ctx, AVFrame *frame, int flags)

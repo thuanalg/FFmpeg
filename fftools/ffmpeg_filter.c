@@ -2515,7 +2515,9 @@ static int fg_output_frame(OutputFilterPriv *ofp, FilterGraphThread *fgt,
     enum AVMediaType type = ofp->ofilter.type;
 
     int64_t nb_frames = !!frame, nb_frames_prev = 0;
-
+    spllog(1, "+++frame(w,h)=(%d, %d)", 
+            (frame ? frame->width : -1), 
+            (frame ? frame->height : -1));
     if (type == AVMEDIA_TYPE_VIDEO && (frame || fgt->got_frame))
         video_sync_process(ofp, frame, &nb_frames, &nb_frames_prev);
 
@@ -2597,9 +2599,14 @@ static int fg_output_step(OutputFilterPriv *ofp, FilterGraphThread *fgt,
     AVFilterContext *filter = ofp->ofilter.filter;
     FrameData *fd;
     int ret;
-
+    spllog(1, "-++++frame(w,h)=(%d, %d)", 
+            (frame ? frame->width : -1) , 
+            (frame ? frame->height : -1) );
     ret = av_buffersink_get_frame_flags(filter, frame,
                                         AV_BUFFERSINK_FLAG_NO_REQUEST);
+    spllog(1, "+av_buffersink_get_frame_flags++++frame(w,h)=(%d, %d)", 
+            (frame ? frame->width : -1) , 
+            (frame ? frame->height : -1) );                                        
     if (ret == AVERROR_EOF && !fgt->eof_out[ofp->ofilter.index]) {
         ret = fg_output_frame(ofp, fgt, NULL);
         return (ret < 0) ? ret : 1;
@@ -2672,7 +2679,9 @@ static int read_frames(FilterGraph *fg, FilterGraphThread *fgt,
 {
     FilterGraphPriv *fgp = fgp_from_fg(fg);
     int did_step = 0;
-
+    spllog(1, "++++frame(w,h)=(%d, %d)", 
+            (frame ? frame->width : -1), 
+            (frame ? frame->height : -1));
     // graph not configured, just select the input to request
     if (!fgt->graph) {
         for (int i = 0; i < fg->nb_inputs; i++) {
@@ -3111,6 +3120,11 @@ static int filter_thread(void *arg)
 
         input_status = sch_filter_receive(fgp->sch, fgp->sch_idx,
                                           &input_idx, fgt.frame);
+                                          
+        spllog(1, "fgt.frame(w, h)=(%d, %d)", 
+            fgt.frame ? fgt.frame->width : -1, 
+            fgt.frame ? fgt.frame->height : -1);         
+
         if (input_status == AVERROR_EOF) {
             av_log(fg, AV_LOG_VERBOSE, "Filtering thread received EOF\n");
             break;

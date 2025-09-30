@@ -749,8 +749,10 @@ static int packet_decode(DecoderPriv *dp, AVPacket *pkt, AVFrame *frame)
 
         update_benchmark(NULL);
         ret = avcodec_receive_frame(dec, frame);
+#if 0
         spllog(1, "linesize[0]: %d", 
             frame ? frame->linesize[0] : -1);
+#endif            
         update_benchmark("decode_%s %s", type_desc, dp->parent_name);
 
         if (ret == AVERROR(EAGAIN)) {
@@ -800,7 +802,7 @@ static int packet_decode(DecoderPriv *dp, AVPacket *pkt, AVFrame *frame)
                        "Error while processing the decoded data\n");
                 return ret;
             }
-            spllog(1, "frame linesize[0]: %d", 
+            spllog(1, "after video_frame_process  linesize[0]: %d", 
                 frame ? frame->linesize[0] : -1);
         }
 
@@ -825,7 +827,9 @@ static int packet_decode(DecoderPriv *dp, AVPacket *pkt, AVFrame *frame)
             spllog(1, "0 to_send linesize[0]: %d, frame linesize[0]: %d", 
                 to_send ? to_send->linesize[0] : -1, 
                 frame ? frame->linesize[0] : -1);
+                
             ret = sch_dec_send(dp->sch, dp->sch_idx, pos, to_send);
+
             spllog(1, "1 to_send linesize[0]: %d, frame linesize[0]: %d", 
                 to_send ? to_send->linesize[0] : -1, 
                 frame ? frame->linesize[0] : -1 );

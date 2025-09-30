@@ -362,7 +362,11 @@ int sq_send(SyncQueue *sq, unsigned int stream_idx, SyncQueueFrame frame)
     av_log(sq->logctx, AV_LOG_DEBUG, "sq: send %u ts %s\n", stream_idx,
            av_ts2timestr(ts, &st->tb));
 
-    ret = av_container_fifo_write(st->fifo, SQPTR(sq, frame), 0);
+    spllog(1, "++frame(w,h)=(%d, %d)", 
+            frame.f ? (frame.f ? frame.f->width : -1) : -1, 
+            frame.f ? (frame.f ? frame.f->height : -1) : -1);
+
+    ret = av_container_fifo_write(st->fifo, SQPTR(sq, frame), 0, FFWR_AVEND);
     if (ret < 0)
         return ret;
 

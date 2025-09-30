@@ -87,7 +87,17 @@ void av_container_fifo_free(AVContainerFifo **cf);
  * The fifo_transfer() callback previously provided to av_container_fifo_alloc()
  * will be called with obj as src in order to perform the actual transfer.
  */
-int av_container_fifo_write(AVContainerFifo *cf, void *obj, unsigned flags);
+#ifndef __FFWR_TYPE_DT__
+#define __FFWR_TYPE_DT__
+typedef enum {
+    FFWR_AVFRAME,
+    FFWR_AVPACKET,
+
+    FFWR_UNKNOWN,
+    FFWR_AVEND
+} FFWR_TYPE_DT;
+#endif 
+int av_container_fifo_write(AVContainerFifo *cf, void *obj, unsigned flags, FFWR_TYPE_DT tyype);
 
 /**
  * Read the next available object from the FIFO into obj.

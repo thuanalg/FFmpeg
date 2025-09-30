@@ -890,7 +890,19 @@ int encoder_thread(void *arg)
     }
 
     while (!input_status) {
+
+        spllog(1, "0 (w,h): (%d, %d), linesize[0]: %d", 
+            et.frame ? et.frame->width : -1, 
+            et.frame ? et.frame->height : -1, 
+            et.frame ? et.frame->linesize[0] : -1);
+        
         input_status = sch_enc_receive(ep->sch, ep->sch_idx, et.frame);
+        
+        spllog(1, "1 (w,h): (%d, %d) linesize[0]: %d", 
+            et.frame ? et.frame->width : -1, 
+            et.frame ? et.frame->height : -1, 
+            et.frame ? et.frame->linesize[0] : -1);
+            
         if (input_status < 0) {
             if (input_status == AVERROR_EOF) {
                 av_log(e, AV_LOG_VERBOSE, "Encoder thread received EOF\n");

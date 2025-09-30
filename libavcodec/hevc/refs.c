@@ -307,7 +307,11 @@ int ff_hevc_output_frames(HEVCContext *s,
                 if (frame->flags & HEVC_FRAME_FLAG_CORRUPT)
                     f->flags |= AV_FRAME_FLAG_CORRUPT;
                 f->pkt_dts = s->pkt_dts;
-                ret = av_container_fifo_write(s->output_fifo, f, AV_CONTAINER_FIFO_FLAG_REF);
+                spllog(1, "--frame(w,h)=(%d, %d)", 
+                    f ? f->width : -1, 
+                    f ? f->height : -1);
+                ret = av_container_fifo_write(s->output_fifo, f, 
+                    AV_CONTAINER_FIFO_FLAG_REF, FFWR_AVFRAME);
             }
             ff_hevc_unref_frame(frame, HEVC_FRAME_FLAG_OUTPUT);
             if (ret < 0)

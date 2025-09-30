@@ -779,6 +779,7 @@ static void container_packet_free(void *opaque, void *obj)
 
 static int container_packet_transfer(void *opaque, void *dst, void *src, unsigned flags)
 {
+    spllog(1, "dsr, src");
     if (flags & AV_CONTAINER_FIFO_FLAG_REF)
         return av_packet_ref(dst, src);
 

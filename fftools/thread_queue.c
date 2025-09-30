@@ -113,13 +113,25 @@ fail:
     return NULL;
 }
 
-int tq_send(ThreadQueue *tq, unsigned int stream_idx, void *data)
+int tq_send(ThreadQueue *tq, unsigned int stream_idx, void *data, FFWR_TYPE_DT tyype)
 {
-    int *finished;
-    int ret;
-
+    int *finished = 0;
+    int ret = 0;
+    AVPacket *pkt = 0;
+    AVFrame *frame = 0;
+    if(tyype == FFWR_AVFRAME) {
+        frame = data;
+    } 
+    else  if(tyype == FFWR_AVPACKET) {
+        pkt = data;
+    }
     av_assert0(stream_idx < tq->nb_streams);
+
     finished = &tq->finished[stream_idx];
+
+    spllog(1, "0-d %s linesize[0]: %d", 
+        data ? ((!!frame) ? "AVFRAME" : "AVPACKET") : "null",
+        data ? ((!!frame) ? frame->linesize[0] : -1) : -1);
 
     pthread_mutex_lock(&tq->lock);
 
@@ -139,7 +151,7 @@ int tq_send(ThreadQueue *tq, unsigned int stream_idx, void *data)
         if (ret < 0)
             goto finish;
 
-        ret = av_container_fifo_write(tq->fifo, data, 0);
+        ret = av_container_fifo_write(tq->fifo, data, 0, tyype);
         if (ret < 0)
             goto finish;
 
@@ -148,6 +160,10 @@ int tq_send(ThreadQueue *tq, unsigned int stream_idx, void *data)
 
 finish:
     pthread_mutex_unlock(&tq->lock);
+
+    spllog(1, "1-d %s linesize[0]: %d", 
+        data ? ((!!frame) ? "AVFRAME" : "AVPACKET") : "null",
+        data ? ((!!frame) ? frame->linesize[0] : -1) : -1);
 
     return ret;
 }

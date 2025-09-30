@@ -67,7 +67,9 @@ void ff_framequeue_free(FFFrameQueue *fq)
 int ff_framequeue_add(FFFrameQueue *fq, AVFrame *frame)
 {
     FFFrameBucket *b;
-
+    spllog(1, "frame(w,h)=(%d, %d)", 
+        frame ? frame->width: -1, 
+        frame ? frame->height: -1);
     check_consistency(fq);
     if (fq->global->queued >= fq->global->max_queued)
         return AVERROR(ENOMEM);
@@ -127,6 +129,9 @@ AVFrame *ff_framequeue_peek(FFFrameQueue *fq, size_t idx)
     av_assert1(idx < fq->queued);
     b = bucket(fq, idx);
     check_consistency(fq);
+    spllog(1, "b->frame(w, h)=(%d, %d)", 
+        b->frame? b->frame->width : -1, 
+        b->frame? b->frame->height : -1);
     return b->frame;
 }
 

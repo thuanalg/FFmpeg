@@ -35,7 +35,7 @@ struct AVContainerFifo {
     int               (*fifo_transfer)  (void *opaque, void *dst, void *src, unsigned flags);
 
 };
-
+static int frame_transfer(void *opaque, void *dst, void *src, unsigned flags);
 static int container_fifo_init_entry(AVRefStructOpaque opaque, void *obj)
 {
     AVContainerFifo *cf = opaque.nc;
@@ -127,7 +127,7 @@ int av_container_fifo_read(AVContainerFifo *cf, void *obj, unsigned flags)
     ret = av_fifo_read(cf->fifo, &psrc, 1);
     if (ret < 0)
         return ret;
-
+    /*av_container_fifo_alloc/frame_transfer*/
     ret = cf->fifo_transfer(cf->opaque, obj, *psrc, flags);
     av_refstruct_unref(&psrc);
 
@@ -159,16 +159,38 @@ void av_container_fifo_drain(AVContainerFifo *cf, size_t nb_elems)
     }
 }
 
-int av_container_fifo_write(AVContainerFifo *cf, void *obj, unsigned flags)
+int av_container_fifo_write(AVContainerFifo *cf, void *obj, unsigned flags, FFWR_TYPE_DT tyype)
 {
     void **pdst;
-    int ret;
+    int ret = 0;
+    void *data = obj;
+
+    void *pkt = 0;
+    AVFrame *frame = 0;
+    if(tyype == FFWR_AVFRAME) {
+        frame = data;
+    } 
 
     pdst = av_refstruct_pool_get(cf->pool);
     if (!pdst)
         return AVERROR(ENOMEM);
 
+    spllog(1, "obj: 0x%p, 0-e %s linesize[0]: %d", obj, 
+        data ? ((!!frame) ? "AVFRAME" : "AVPACKET") : "null",
+        data ? ((!!frame) ? frame->linesize[0] : -1) : -1);
+    if(frame_transfer == cf->fifo_transfer) {
+        int a = 0;
+    }
     ret = cf->fifo_transfer(cf->opaque, *pdst, obj, flags);
+    if(frame) {
+        frame = *pdst;
+    }
+    spllog(1, "*pdst: 0x%p, 1-e %s linesize[0]: %d, (w,h):(%d, %d)", obj, 
+        data ? ((!!frame) ? "AVFRAME" : "AVPACKET") : "null",
+        data ? ((!!frame) ? frame->linesize[0] : -1) : -1, 
+        frame ? frame->width : -1, 
+        frame ? frame->height : -1);
+
     if (ret < 0)
         goto fail;
 
@@ -205,10 +227,22 @@ static void frame_free(void *opaque, void *obj)
 
 static int frame_transfer(void *opaque, void *dst, void *src, unsigned flags)
 {
+    AVFrame *frame  = src;
+    spllog(1, "0-fsrc(w, h): (%d, %d), flag: %u, linesize[0]: %d", 
+        frame ? frame->width : -1, 
+        frame ? frame->height : -1, 
+        flags, 
+        frame ? frame->linesize[0] : -1);
+
     if (flags & AV_CONTAINER_FIFO_FLAG_REF)
         return av_frame_ref(dst, src);
 
     av_frame_move_ref(dst, src);
+
+    spllog(1, "0-fsrc(w, h): (%d, %d)", 
+        frame ? frame->width : -1, 
+        frame ? frame->height : -1);    
+
     return 0;
 }
 

@@ -1136,7 +1136,7 @@ static int mux_task_start(SchMux *mux)
 
             if (pkt) {
                 if (!ms->init_eof)
-                    ret = tq_send(mux->queue, min_stream, pkt);
+                    ret = tq_send(mux->queue, min_stream, pkt, FFWR_AVPACKET);
                 av_packet_free(&pkt);
                 if (ret == AVERROR_EOF)
                     ms->init_eof = 1;
@@ -1717,7 +1717,7 @@ static int send_to_enc_thread(Scheduler *sch, SchEnc *enc, AVFrame *frame)
     if (enc->in_finished)
         return AVERROR_EOF;
 
-    ret = tq_send(enc->queue, 0, frame);
+    ret = tq_send(enc->queue, 0, frame, FFWR_AVFRAME);
     if (ret < 0)
         enc->in_finished = 1;
 
@@ -1753,6 +1753,9 @@ static int send_to_enc_sq(Scheduler *sch, SchEnc *enc, AVFrame *frame)
             pthread_mutex_unlock(&sch->schedule_lock);
         }
     }
+    spllog(1, "+++frame(w,h)=(%d, %d)", 
+            (frame ? frame->width : -1)   , 
+            (frame ? frame->height : -1) );
 
     pthread_mutex_lock(&sq->lock);
 
@@ -1912,7 +1915,7 @@ static int send_to_mux(Scheduler *sch, SchMux *mux, unsigned stream_idx,
         if (ms->init_eof)
             return AVERROR_EOF;
 
-        ret = tq_send(mux->queue, stream_idx, pkt);
+        ret = tq_send(mux->queue, stream_idx, pkt, FFWR_AVPACKET);
         if (ret < 0)
             return ret;
     } else
@@ -1955,7 +1958,7 @@ demux_stream_send_to_dst(Scheduler *sch, const SchedulerNode dst,
 
     ret = (dst.type == SCH_NODE_TYPE_MUX) ?
           send_to_mux(sch, &sch->mux[dst.idx], dst.idx_stream, pkt) :
-          tq_send(sch->dec[dst.idx].queue, 0, pkt);
+          tq_send(sch->dec[dst.idx].queue, 0, pkt, FFWR_AVPACKET);
     if (ret == AVERROR_EOF)
         goto finish;
 
@@ -2022,7 +2025,7 @@ static int demux_flush(Scheduler *sch, SchDemux *d, AVPacket *pkt)
 
             dec = &sch->dec[dst->idx];
 
-            ret = tq_send(dec->queue, 0, pkt);
+            ret = tq_send(dec->queue, 0, pkt, FFWR_AVPACKET);
             if (ret < 0)
                 return ret;
 
@@ -2142,7 +2145,7 @@ int sch_mux_sub_heartbeat(Scheduler *sch, unsigned mux_idx, unsigned stream_idx,
         if (ret < 0)
             return ret;
 
-        tq_send(dst->queue, 0, mux->sub_heartbeat_pkt);
+        tq_send(dst->queue, 0, mux->sub_heartbeat_pkt, FFWR_AVPACKET);
     }
 
     return 0;
@@ -2212,7 +2215,7 @@ static int send_to_filter(Scheduler *sch, SchFilterGraph *fg,
         spllog(1, "0-r frame linesize[0]: %d", 
             frame ? frame->linesize[0] : -1 );  
 
-        ret = tq_send(fg->queue, in_idx, frame);
+        ret = tq_send(fg->queue, in_idx, frame, FFWR_AVFRAME);
 
         spllog(1, "1-r frame linesize[0]: %d", 
             frame ? frame->linesize[0] : -1 );          
@@ -2370,7 +2373,7 @@ static int enc_send_to_dst(Scheduler *sch, const SchedulerNode dst,
 
     ret = (dst.type == SCH_NODE_TYPE_MUX) ?
           send_to_mux(sch, &sch->mux[dst.idx], dst.idx_stream, pkt) :
-          tq_send(sch->dec[dst.idx].queue, 0, pkt);
+          tq_send(sch->dec[dst.idx].queue, 0, pkt, FFWR_AVPACKET);
     if (ret == AVERROR_EOF)
         goto finish;
 
