@@ -32,6 +32,7 @@ int main(int argc, char *argv[])
     z_stream zstream;
     struct stat statbuf;
     int ret = 1;
+    int n = 0;
 
     if (argc < 3) {
         printf("Usage: %s <infile.swf> <outfile.swf>\n", argv[0]);
@@ -136,13 +137,21 @@ int main(int argc, char *argv[])
         buf_in[1] = ((zstream.total_out + 8) >>  8) & 0xff;
         buf_in[2] = ((zstream.total_out + 8) >> 16) & 0xff;
         buf_in[3] = ((zstream.total_out + 8) >> 24) & 0xff;
-
+#if 0
         if (   lseek(fd_out, 4, SEEK_SET) < 0
             || write(fd_out, &buf_in, 4) < 4) {
             perror("Error writing output file");
             inflateEnd(&zstream);
             goto out;
         }
+#else
+        spl_write( n, fd_out, &buf_in, 4)
+        if (   lseek(fd_out, 4, SEEK_SET) < 0 || n < 4) {
+            perror("Error writing output file");
+            inflateEnd(&zstream);
+            goto out;
+        }
+#endif        
     }
 
     ret = 0;

@@ -99,6 +99,7 @@ int main(int argc, char **argv)
     char buf[64];
     double t;
     int ret;
+    int n = 0;
 
     if (argc != 2) {
         fprintf(stderr, "Usage: %s output_file\n"
@@ -194,7 +195,11 @@ int main(int argc, char **argv)
             goto end;
         }
         printf("t:%f in:%d out:%d\n", t, src_nb_samples, ret);
+#if 0        
         fwrite(dst_data[0], 1, dst_bufsize, dst_file);
+#else
+        spl_writef( n, dst_data[0], 1, dst_bufsize, dst_file);
+#endif        
     } while (t < 10);
 
     if ((ret = get_format_from_sample_fmt(&fmt, dst_sample_fmt)) < 0)

@@ -60,6 +60,7 @@ static int md5_close(URLContext *h)
     uint8_t md5[16], buf[2 * sizeof(md5) + 1];
     URLContext *out;
     int err = 0;
+    int n  = 0;
 
     av_md5_final(c->md5, md5);
     ff_data_to_hex(buf, md5, sizeof(md5), 1);
@@ -76,8 +77,14 @@ static int md5_close(URLContext *h)
         err = ffurl_write(out, buf, sizeof(buf));
         ffurl_close(out);
     } else {
+#if 0        
         if (fwrite(buf, 1, sizeof(buf), stdout) < sizeof(buf))
             err = AVERROR(errno);
+#else
+        spl_writef( n, buf, 1, sizeof(buf), stdout);
+        if (n < sizeof(buf))
+            err = AVERROR(errno);
+#endif            
     }
 
     av_freep(&c->md5);

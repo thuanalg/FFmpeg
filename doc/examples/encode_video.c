@@ -62,7 +62,11 @@ static void encode(AVCodecContext *enc_ctx, AVFrame *frame, AVPacket *pkt,
         }
 
         printf("Write packet %3"PRId64" (size=%5d)\n", pkt->pts, pkt->size);
+#if 0        
         nw = fwrite(pkt->data, 1, pkt->size, outfile);
+#else
+        spl_writef( nw, pkt->data, 1, pkt->size, outfile);
+#endif        
         av_packet_unref(pkt);
     }
 }
@@ -77,6 +81,7 @@ int main(int argc, char **argv)
     AVFrame *frame;
     AVPacket *pkt;
     uint8_t endcode[] = { 0, 0, 1, 0xb7 };
+    int n = 0;
 
     if (argc <= 2) {
         fprintf(stderr, "Usage: %s <output file> <codec name>\n", argv[0]);
@@ -205,8 +210,14 @@ int main(int argc, char **argv)
        codecs. To create a valid file, you usually need to write packets
        into a proper file format or protocol; see mux.c.
      */
+#if 0    
     if (codec->id == AV_CODEC_ID_MPEG1VIDEO || codec->id == AV_CODEC_ID_MPEG2VIDEO)
         fwrite(endcode, 1, sizeof(endcode), f);
+#else
+    if (codec->id == AV_CODEC_ID_MPEG1VIDEO || codec->id == AV_CODEC_ID_MPEG2VIDEO) {
+        spl_writef( n, endcode, 1, sizeof(endcode), f);
+    }
+#endif        
     fclose(f);
 
     avcodec_free_context(&c);

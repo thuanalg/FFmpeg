@@ -114,8 +114,11 @@ static int add_entry(URLContext *h, const unsigned char *buf, int size)
         goto fail;
     }
     c->cache_pos = pos;
-
+#if 0
     ret = write(c->fd, buf, size);
+#else
+    spl_write( ret, c->fd, buf, size);
+#endif    
     if (ret < 0) {
         ret = AVERROR(errno);
         av_log(h, AV_LOG_ERROR, "write in cache failed\n");

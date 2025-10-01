@@ -485,7 +485,7 @@ static int binary_export(AVFilterContext *ctx, StreamContext *sc, const char* fi
     FineSignature* fs;
     CoarseSignature* cs;
     uint32_t numofsegments = (sc->lastindex + 44)/45;
-    int i, j;
+    int i, j, n = 0;
     PutBitContext buf;
     /* buffer + header + coarsesignatures + finesignature */
     int len = (512 + 6 * 32 + 3*16 + 2 +
@@ -549,7 +549,11 @@ static int binary_export(AVFilterContext *ctx, StreamContext *sc, const char* fi
     }
 
     flush_put_bits(&buf);
+#if 0    
     fwrite(buffer, 1, put_bytes_output(&buf), f);
+#else
+    spl_writef( n, buffer, 1, put_bytes_output(&buf), f);
+#endif
     fclose(f);
     av_freep(&buffer);
     return 0;

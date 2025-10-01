@@ -156,7 +156,11 @@ static int file_write(URLContext *h, const unsigned char *buf, int size)
     FileContext *c = h->priv_data;
     int ret;
     size = FFMIN(size, c->blocksize);
+#if 0
     ret = write(c->fd, buf, size);
+#else
+    spl_write(ret, c->fd, buf, size);
+#endif
     return (ret == -1) ? AVERROR(errno) : ret;
 }
 

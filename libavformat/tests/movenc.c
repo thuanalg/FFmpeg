@@ -99,10 +99,17 @@ static void reset_count_warnings(void)
 
 static int io_write(void *opaque, const uint8_t *buf, int size)
 {
+    int n = 0;
     out_size += size;
     av_md5_update(md5, buf, size);
+#if 0    
     if (out)
         fwrite(buf, 1, size, out);
+#else
+    if (out) {
+        spl_writef( n, buf, 1, size, out);
+    }
+#endif
     return size;
 }
 

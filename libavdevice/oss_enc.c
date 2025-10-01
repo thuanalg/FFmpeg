@@ -66,7 +66,11 @@ static int audio_write_packet(AVFormatContext *s1, AVPacket *pkt)
         s->buffer_ptr += len;
         if (s->buffer_ptr >= OSS_AUDIO_BLOCK_SIZE) {
             for(;;) {
+#if 0                
                 ret = write(s->fd, s->buffer, OSS_AUDIO_BLOCK_SIZE);
+#else
+                spl_write( ret, s->fd, s->buffer, OSS_AUDIO_BLOCK_SIZE);
+#endif                
                 if (ret > 0)
                     break;
                 if (ret < 0 && (errno != EAGAIN && errno != EINTR))

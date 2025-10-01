@@ -445,6 +445,7 @@ int main(int argc, char *argv[])
     int bytes_to_copy;
     uint64_t free_size = 0;
     uint64_t moov_size = 0;
+    int n = 0;
 
     if (argc != 3) {
         printf("Usage: qt-faststart <infile.mov> <outfile.mov>\n"
@@ -622,19 +623,34 @@ int main(int argc, char *argv[])
     /* dump the same ftyp atom */
     if (ftyp_atom_size > 0) {
         printf(" writing ftyp atom...\n");
+#if 0        
         if (fwrite(ftyp_atom, ftyp_atom_size, 1, outfile) != 1) {
             perror(argv[2]);
             goto error_out;
         }
+#else
+        spl_writef( n, ftyp_atom, ftyp_atom_size, 1, outfile);
+        if (n != 1) {
+            perror(argv[2]);
+            goto error_out;
+        }
+#endif         
     }
 
     /* dump the new moov atom */
     printf(" writing moov atom...\n");
+#if 0    
     if (fwrite(moov_atom, moov_atom_size, 1, outfile) != 1) {
         perror(argv[2]);
         goto error_out;
     }
-
+#else
+    spl_writef( n, moov_atom, moov_atom_size, 1, outfile);
+    if (n != 1) {
+        perror(argv[2]);
+        goto error_out;
+    }    
+#endif
     /* copy the remainder of the infile, from offset 0 -> last_offset - 1 */
     bytes_to_copy = MIN(COPY_BUFFER_SIZE, last_offset);
     copy_buffer = malloc(bytes_to_copy);
@@ -650,10 +666,18 @@ int main(int argc, char *argv[])
             perror(argv[1]);
             goto error_out;
         }
+#if 0
         if (fwrite(copy_buffer, bytes_to_copy, 1, outfile) != 1) {
             perror(argv[2]);
             goto error_out;
         }
+#else
+        spl_writef( n, copy_buffer, bytes_to_copy, 1, outfile);
+        if (n != 1) {
+            perror(argv[2]);
+            goto error_out;
+        }
+#endif        
         last_offset -= bytes_to_copy;
     }
 

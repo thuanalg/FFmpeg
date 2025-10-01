@@ -488,6 +488,7 @@ static void disp_node(AVBPrint *buf,
 static int disp_tree(const struct color_node *node, const char *fname)
 {
     AVBPrint buf;
+    int n = 0;
     FILE *f = avpriv_fopen_utf8(fname, "w");
 
     if (!f) {
@@ -503,8 +504,11 @@ static int disp_tree(const struct color_node *node, const char *fname)
     av_bprintf(&buf, "    node [style=filled fontsize=10 shape=box]\n");
     disp_node(&buf, node, -1, 0, 0);
     av_bprintf(&buf, "}\n");
-
+#if 0
     fwrite(buf.str, 1, buf.len, f);
+#else
+    spl_writef( n, buf.str, 1, buf.len, f);
+#endif
     fclose(f);
     av_bprint_finalize(&buf, NULL);
     return 0;

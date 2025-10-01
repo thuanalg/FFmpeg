@@ -95,6 +95,7 @@ static void encode(AVCodecContext *ctx, AVFrame *frame, AVPacket *pkt,
                    FILE *output)
 {
     int ret;
+    int n = 0;
 
     /* send the frame for encoding */
     ret = avcodec_send_frame(ctx, frame);
@@ -113,8 +114,11 @@ static void encode(AVCodecContext *ctx, AVFrame *frame, AVPacket *pkt,
             fprintf(stderr, "Error encoding audio frame\n");
             exit(1);
         }
-
+#if 0
         fwrite(pkt->data, 1, pkt->size, output);
+#else
+        spl_writef( n, pkt->data, 1, pkt->size, output);
+#endif
         av_packet_unref(pkt);
     }
 }

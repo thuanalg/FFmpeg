@@ -74,6 +74,7 @@ static void decode(AVCodecContext *dec_ctx, AVPacket *pkt, AVFrame *frame,
 {
     int i, ch;
     int ret, data_size;
+    int n = 0;
 
     /* send the packet with the compressed data to the decoder */
     ret = avcodec_send_packet(dec_ctx, pkt);
@@ -97,9 +98,16 @@ static void decode(AVCodecContext *dec_ctx, AVPacket *pkt, AVFrame *frame,
             fprintf(stderr, "Failed to calculate data size\n");
             exit(1);
         }
+#if 0
         for (i = 0; i < frame->nb_samples; i++)
             for (ch = 0; ch < dec_ctx->ch_layout.nb_channels; ch++)
                 fwrite(frame->data[ch] + data_size*i, 1, data_size, outfile);
+#else
+        for (i = 0; i < frame->nb_samples; i++)
+            for (ch = 0; ch < dec_ctx->ch_layout.nb_channels; ch++) {
+                spl_writef( n, frame->data[ch] + data_size*i, 1, data_size, outfile);
+            }
+#endif
     }
 }
 

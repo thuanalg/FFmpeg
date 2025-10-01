@@ -110,6 +110,7 @@ static void pgmyuv_save(const char *filename, int w, int h,
     int i, h2, w2;
     unsigned char *cb, *cr;
     unsigned char *lum_tab, *cb_tab, *cr_tab;
+    int n = 0;
 
     lum_tab = malloc(w * h);
     cb_tab  = malloc(w * h / 4);
@@ -123,7 +124,7 @@ static void pgmyuv_save(const char *filename, int w, int h,
     } else {
         f = stdout;
     }
-
+#if 0
     err_if(fwrite(lum_tab, 1, w * h, f) != w * h);
     h2 = h / 2;
     w2 = w / 2;
@@ -148,7 +149,37 @@ static void pgmyuv_save(const char *filename, int w, int h,
             cr += w2;
         }
     }
+#else
+    spl_writef( n, lum_tab, 1, w * h, f);
+    err_if(n != w * h);
+    h2 = h / 2;
+    w2 = w / 2;
+    cb = cb_tab;
+    cr = cr_tab;
 
+    if (filename) {
+        for (i = 0; i < h2; i++) {
+            spl_writef( n, cb, 1, w2, f);
+            err_if(n != w2);
+            spl_writef( n, cr, 1, w2, f);
+            err_if(n != w2);
+            cb += w2;
+            cr += w2;
+        }
+        fclose(f);
+    } else {
+        for (i = 0; i < h2; i++) {
+            spl_writef( n, cb, 1, w2, f);
+            err_if(n != w2);
+            cb += w2;
+        }
+        for (i = 0; i < h2; i++) {
+            spl_writef( n, cr, 1, w2, f);
+            err_if(n != w2);
+            cr += w2;
+        }
+    }
+#endif
     free(lum_tab);
     free(cb_tab);
     free(cr_tab);

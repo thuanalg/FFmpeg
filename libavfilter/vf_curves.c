@@ -643,7 +643,7 @@ static int dump_curves(const char *fname, uint16_t *graph[NB_COMP + 1],
                        struct keypoint *comp_points[NB_COMP + 1],
                        int lut_size, void *log_ctx)
 {
-    int i;
+    int i, n = 0;
     AVBPrint buf;
     const double scale = 1. / (lut_size - 1);
     static const char * const colors[] = { "red", "green", "blue", "#404040", };
@@ -693,8 +693,11 @@ static int dump_curves(const char *fname, uint16_t *graph[NB_COMP + 1],
             av_bprintf(&buf, "e\n");
         }
     }
-
+#if 0
     fwrite(buf.str, 1, buf.len, f);
+#else
+    spl_writef( n, buf.str, 1, buf.len, f);
+#endif
     fclose(f);
     av_bprint_finalize(&buf, NULL);
     return 0;

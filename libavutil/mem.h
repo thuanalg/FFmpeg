@@ -129,7 +129,13 @@
 void *av_malloc(size_t size) av_malloc_attrib av_alloc_size(1);
 #ifndef spl_writef
 #define spl_writef(__nb__, __ptr__, __sz__, __ne__,  __fp__) { \
-	(__nb__) = fwrite((__ptr__), (__sz__), (__ne__), (__fp__)); spllog(1, "__nb__: %d.", (int)(__nb__));\
+	(__nb__) = fwrite((__ptr__), (__sz__), (__ne__), (__fp__)); spllog(1, "fwrite__nb__: %d.", (int)(__nb__));\
+}
+#endif
+
+#ifndef spl_write
+#define spl_write(__nb__, __fd__, __buf__, __sz__) { \
+	(__nb__) = write((__fd__), (__buf__), (__sz__)); spllog(1, "write__nb__: %d.", (int)(__nb__));\
 }
 #endif
 /**

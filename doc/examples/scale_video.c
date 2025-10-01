@@ -62,6 +62,7 @@ int main(int argc, char **argv)
     int dst_bufsize;
     struct SwsContext *sws_ctx;
     int i, ret;
+    int n = 0;
 
     if (argc != 3) {
         fprintf(stderr, "Usage: %s output_file output_size\n"
@@ -125,7 +126,11 @@ int main(int argc, char **argv)
                   src_linesize, 0, src_h, dst_data, dst_linesize);
 
         /* write scaled image to file */
+#if 0        
         fwrite(dst_data[0], 1, dst_bufsize, dst_file);
+#else
+        spl_writef( n, dst_data[0], 1, dst_bufsize, dst_file);
+#endif
     }
 
     fprintf(stderr, "Scaling succeeded. Play the output file with the command:\n"

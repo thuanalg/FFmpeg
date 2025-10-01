@@ -55,9 +55,11 @@ static AVFrame *frame = NULL;
 static AVPacket *pkt = NULL;
 static int video_frame_count = 0;
 static int audio_frame_count = 0;
+int n = 0;
 
 static int output_video_frame(AVFrame *frame)
 {
+    int n = 0;
     if (frame->width != width || frame->height != height ||
         frame->format != pix_fmt) {
         /* To handle this change, one could call av_image_alloc again and
@@ -83,12 +85,17 @@ static int output_video_frame(AVFrame *frame)
                    pix_fmt, width, height);
 
     /* write to rawvideo file */
+#if 0    
     fwrite(video_dst_data[0], 1, video_dst_bufsize, video_dst_file);
+#else
+    spl_writef(n, video_dst_data[0], 1, video_dst_bufsize, video_dst_file);
+#endif
     return 0;
 }
 
 static int output_audio_frame(AVFrame *frame)
 {
+    int n = 0;
     size_t unpadded_linesize = frame->nb_samples * av_get_bytes_per_sample(frame->format);
     printf("audio_frame n:%d nb_samples:%d pts:%s\n",
            audio_frame_count++, frame->nb_samples,
@@ -102,8 +109,11 @@ static int output_audio_frame(AVFrame *frame)
      * in these cases.
      * You should use libswresample or libavfilter to convert the frame
      * to packed data. */
+#if 0    
     fwrite(frame->extended_data[0], 1, unpadded_linesize, audio_dst_file);
-
+#else
+    spl_writef( n, frame->extended_data[0], 1, unpadded_linesize, audio_dst_file);
+#endif
     return 0;
 }
 

@@ -394,6 +394,7 @@ static int deshake_transform_c(AVFilterContext *ctx,
 static av_cold int init(AVFilterContext *ctx)
 {
     DeshakeContext *deshake = ctx->priv;
+    int n = 0;
 
     deshake->refcount = 20; // XXX: add to options?
     deshake->blocksize /= 2;
@@ -406,9 +407,14 @@ static av_cold int init(AVFilterContext *ctx)
 
     if (deshake->filename)
         deshake->fp = avpriv_fopen_utf8(deshake->filename, "w");
+#if 0        
     if (deshake->fp)
         fwrite("Ori x, Avg x, Fin x, Ori y, Avg y, Fin y, Ori angle, Avg angle, Fin angle, Ori zoom, Avg zoom, Fin zoom\n", 1, 104, deshake->fp);
-
+#else
+    if (deshake->fp) {
+        spl_writef( n, "Ori x, Avg x, Fin x, Ori y, Avg y, Fin y, Ori angle, Avg angle, Fin angle, Ori zoom, Avg zoom, Fin zoom\n", 1, 104, deshake->fp);
+    }
+#endif
     // Quadword align left edge of box for MMX code, adjust width if necessary
     // to keep right margin
     if (deshake->cx > 0) {
@@ -468,6 +474,7 @@ static int filter_frame(AVFilterLink *link, AVFrame *in)
     const int chroma_height = AV_CEIL_RSHIFT(link->h, desc->log2_chroma_h);
     int aligned;
     float transform_zoom;
+    int n = 0;
 
     out = ff_get_video_buffer(outlink, outlink->w, outlink->h);
     if (!out) {
@@ -533,7 +540,11 @@ static int filter_frame(AVFilterLink *link, AVFrame *in)
     // Write statistics to file
     if (deshake->fp) {
         snprintf(tmp, 256, "%f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f\n", orig.vec.x, deshake->avg.vec.x, t.vec.x, orig.vec.y, deshake->avg.vec.y, t.vec.y, orig.angle, deshake->avg.angle, t.angle, orig.zoom, deshake->avg.zoom, t.zoom);
+#if 0
         fwrite(tmp, 1, strlen(tmp), deshake->fp);
+#else
+        spl_writef( n, tmp, 1, strlen(tmp), deshake->fp);
+#endif
     }
 
     // Turn relative current frame motion into absolute by adding it to the

@@ -118,7 +118,11 @@ int main(int argc, char **argv)
             printf(EXTRADATAFILESUFF "\n", i, par->extradata_size);
             if (!nowrite) {
                 fd  = open(pktfilename, O_WRONLY | O_CREAT, 0644);
+#if 0                
                 err = write(fd, par->extradata, par->extradata_size);
+#else
+                spl_write( err, fd, par->extradata, par->extradata_size);
+#endif                
                 if (err < 0) {
                     fprintf(stderr, "write: error %d\n", err);
                     return 1;
@@ -140,7 +144,11 @@ int main(int argc, char **argv)
                (pkt->flags & AV_PKT_FLAG_KEY) ? 'K' : '_');
         if (!nowrite) {
             fd  = open(pktfilename, O_WRONLY | O_CREAT, 0644);
+#if 0            
             err = write(fd, pkt->data, pkt->size);
+#else
+            spl_write( err, fd, pkt->data, pkt->size);
+#endif            
             if (err < 0) {
                 fprintf(stderr, "write: error %d\n", err);
                 return 1;

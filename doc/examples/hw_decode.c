@@ -131,12 +131,18 @@ static int decode_write(AVCodecContext *avctx, AVPacket *packet)
             fprintf(stderr, "Can not copy image to buffer\n");
             goto fail;
         }
-
+#if 0
         if ((ret = fwrite(buffer, 1, size, output_file)) < 0) {
             fprintf(stderr, "Failed to dump raw data.\n");
             goto fail;
         }
-
+#else
+        spl_writef( ret, buffer, 1, size, output_file);
+        if (ret < 0) {
+            fprintf(stderr, "Failed to dump raw data.\n");
+            goto fail;
+        }
+#endif
     fail:
         av_frame_free(&frame);
         av_frame_free(&sw_frame);

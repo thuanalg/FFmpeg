@@ -64,9 +64,11 @@ int main(int argc, char **argv)
         int dis = hrtf->SourcePosition.values[i * 3 + 2];
         int size = 8 * hrtf->N;
         int offset = i * 2 * hrtf->N;
+        int n = 0;
 
         snprintf(filename, sizeof(filename), "azi_%d_ele_%d_dis_%d.wav", azi, ele, dis);
         file = fopen(filename, "w+");
+#if 0    
         fwrite("RIFF", 4, 1, file);
         fwrite("\xFF\xFF\xFF\xFF", 4, 1, file);
         fwrite("WAVE", 4, 1, file);
@@ -89,6 +91,30 @@ int main(int argc, char **argv)
             fwrite(&l, 4, 1, file);
             fwrite(&r, 4, 1, file);
         }
+#else
+        spl_writef( n, "RIFF", 4, 1, file);
+        spl_writef( n, "\xFF\xFF\xFF\xFF", 4, 1, file);
+        spl_writef( n, "WAVE", 4, 1, file);
+        spl_writef( n, "fmt ", 4, 1, file);
+        spl_writef( n, "\x10\x00\00\00", 4, 1, file);
+        spl_writef( n, "\x03\x00", 2, 1, file);
+        spl_writef( n, "\x02\x00", 2, 1, file);
+        spl_writef( n, &sample_rate, 4, 1, file);
+        spl_writef( n, &bytespersec, 4, 1, file);
+        spl_writef( n, &blkalign, 2, 1, file);
+        spl_writef( n, &bps, 2, 1, file);
+        spl_writef( n, "data", 4, 1, file);
+        spl_writef( n, &size, 4, 1, file);
+
+        for (j = 0; j < hrtf->N; j++) {
+            float l, r;
+
+            l = hrtf->DataIR.values[offset + j];
+            r = hrtf->DataIR.values[offset + j + hrtf->N];
+            spl_writef( n, &l, 4, 1, file);
+            spl_writef( n, &r, 4, 1, file);
+        }
+#endif
         fclose(file);
     }
 

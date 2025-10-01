@@ -43,6 +43,7 @@ int main(int argc, char **argv)
 {
     FILE *f;
     int count, maxburst, length;
+    int n = 0;
 
     if (argc < 5) {
         printf("USAGE: trasher <filename> <count> <maxburst> <seed>\n");
@@ -78,8 +79,11 @@ int main(int argc, char **argv)
 
             if (maxburst < 0)
                 val = 0;
-
+#if 0
             fwrite(&val, 1, 1, f);
+#else
+            spl_writef( n, &val, 1, 1, f);
+#endif            
         }
     }
 

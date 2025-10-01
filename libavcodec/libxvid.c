@@ -527,8 +527,11 @@ static av_cold int xvid_encode_init(AVCodecContext *avctx)
                    "Xvid: No 2-pass information loaded for second pass\n");
             return AVERROR(EINVAL);
         }
-
+#if 0
         ret = write(fd, avctx->stats_in, strlen(avctx->stats_in));
+#else
+        spl_write( ret, fd, avctx->stats_in, strlen(avctx->stats_in));
+#endif
         if (ret == -1)
             ret = AVERROR(errno);
         else if (strlen(avctx->stats_in) > ret) {
