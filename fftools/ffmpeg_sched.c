@@ -2471,6 +2471,11 @@ int sch_filter_receive(Scheduler *sch, unsigned fg_idx,
         int ret, idx;
 
         ret = tq_receive(fg->queue, &idx, frame);
+
+        spllog(1, "f(w, h) = (%d, %d)", 
+            frame ? frame->width : -1, 
+            frame ? frame->height : -1);
+            
         if (idx < 0)
             return AVERROR_EOF;
         else if (ret >= 0) {

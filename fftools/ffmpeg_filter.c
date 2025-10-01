@@ -2096,7 +2096,11 @@ static int ifilter_parameters_from_frame(InputFilter *ifilter, const AVFrame *fr
 {
     InputFilterPriv *ifp = ifp_from_ifilter(ifilter);
     AVFrameSideData *sd;
-    int ret;
+    int ret = 0;
+
+    spllog(1, "fgt.frame(w, h)=(%d, %d)", 
+        frame ? frame->width : -1, 
+        frame ? frame->height : -1);  
 
     ret = av_buffer_replace(&ifp->hw_frames_ctx, frame->hw_frames_ctx);
     if (ret < 0)
@@ -2152,6 +2156,10 @@ static int ifilter_parameters_from_frame(InputFilter *ifilter, const AVFrame *fr
     }
     ifp->downmixinfo_present = !!sd;
 
+    spllog(1, "fgt.frame(w, h)=(%d, %d)", 
+        frame ? frame->width : -1, 
+        frame ? frame->height : -1);  
+        
     return 0;
 }
 
@@ -2940,6 +2948,9 @@ static int send_frame(FilterGraph *fg, FilterGraphThread *fgt,
         need_reinit |= HWACCEL_CHANGED;
 
     if (need_reinit) {
+        if(frame && frame->width > 0) {
+            int a = 0;
+        }
         ret = ifilter_parameters_from_frame(ifilter, frame);
         if (ret < 0)
             return ret;
@@ -3148,6 +3159,11 @@ static int filter_thread(void *arg)
             fc = (FilterCommand*)fgt.frame->buf[0]->data;
             send_command(fg, fgt.graph, fc->time, fc->target, fc->command, fc->arg,
                          fc->all_filters);
+
+            spllog(1, "thread-loop fgt.frame(w, h)=(%d, %d)", 
+                fgt.frame ? fgt.frame->width : -1, 
+                fgt.frame ? fgt.frame->height : -1);  
+
             av_frame_unref(fgt.frame);
             continue;
         }
@@ -3155,17 +3171,39 @@ static int filter_thread(void *arg)
         // we received an input frame or EOF
         ifilter   = fg->inputs[input_idx];
         ifp       = ifp_from_ifilter(ifilter);
+        
+ 
 
         if (ifp->type_src == AVMEDIA_TYPE_SUBTITLE) {
             int hb_frame = input_status >= 0 && o == FRAME_OPAQUE_SUB_HEARTBEAT;
+
+            spllog(1, "thread-loop fgt.frame(w, h)=(%d, %d)", 
+                fgt.frame ? fgt.frame->width : -1, 
+                fgt.frame ? fgt.frame->height : -1);       
+
             ret = sub2video_frame(ifilter, (fgt.frame->buf[0] || hb_frame) ? fgt.frame : NULL,
                                   !fgt.graph);
         } else if (fgt.frame->buf[0]) {
+            spllog(1, "thread-loop fgt.frame(w, h)=(%d, %d)", 
+                fgt.frame ? fgt.frame->width : -1, 
+                fgt.frame ? fgt.frame->height : -1);             
+
             ret = send_frame(fg, &fgt, ifilter, fgt.frame);
+
         } else {
             av_assert1(o == FRAME_OPAQUE_EOF);
+
+            spllog(1, "thread-loop fgt.frame(w, h)=(%d, %d)", 
+                fgt.frame ? fgt.frame->width : -1, 
+                fgt.frame ? fgt.frame->height : -1);  
+
             ret = send_eof(&fgt, ifilter, fgt.frame->pts, fgt.frame->time_base);
         }
+
+        spllog(1, "thread-loop fgt.frame(w, h)=(%d, %d)", 
+            fgt.frame ? fgt.frame->width : -1, 
+            fgt.frame ? fgt.frame->height : -1);    
+
         av_frame_unref(fgt.frame);
         if (ret == AVERROR_EOF) {
             av_log(fg, AV_LOG_VERBOSE, "Input %u no longer accepts new data\n",
