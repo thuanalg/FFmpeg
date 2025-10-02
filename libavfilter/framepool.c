@@ -208,6 +208,12 @@ AVFrame *ff_frame_pool_get(FFFramePool *pool)
             goto fail;
         }
 
+        spllog(1, "frame(w,h)=(%d, %d), pool(w, h) = (%d, %d)", 
+            frame ? frame->width: -1, 
+            frame ? frame->height: -1, 
+            pool ? pool->width: -1, 
+            pool ? pool->height: -1);    
+
         frame->width = pool->width;
         frame->height = pool->height;
         frame->format = pool->format;
@@ -223,6 +229,10 @@ AVFrame *ff_frame_pool_get(FFFramePool *pool)
 
             frame->data[i] = (uint8_t *)FFALIGN((uintptr_t)frame->buf[i]->data, pool->align);
         }
+
+        spllog(1, "frame(w,h)=(%d, %d)", 
+            frame ? frame->width: -1, 
+            frame ? frame->height: -1);    
 
         if (desc->flags & AV_PIX_FMT_FLAG_PAL) {
             enum AVPixelFormat format =

@@ -264,6 +264,12 @@ int attribute_align_arg av_buffersrc_add_frame_flags(AVFilterContext *ctx, AVFra
     if (copy->alpha_mode == AVALPHA_MODE_UNSPECIFIED)
         copy->alpha_mode = ctx->outputs[0]->alpha_mode;
 
+
+    spllog(1, "frame(w,h)=(%d, %d)", 
+        copy ? copy->width: -1, 
+        copy ? copy->height: -1);    
+
+        
     ret = ff_filter_frame(ctx->outputs[0], copy);
     if (ret < 0)
         return ret;

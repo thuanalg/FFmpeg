@@ -752,6 +752,11 @@ static int scale_frame(AVFilterLink *link, AVFrame **frame_in,
     char buf[32];
     int ret, flags_orig, frame_changed;
 
+    spllog(1, "in_frame(w,h)=(%d, %d)", 
+        in ? in->width: -1, 
+        in ? in->height: -1);    
+
+
     *frame_in = NULL;
 
     frame_changed = in->width  != link->w ||
@@ -816,12 +821,22 @@ scale:
     scale->hsub = desc->log2_chroma_w;
     scale->vsub = desc->log2_chroma_h;
 
+    spllog(1, "out_frame(w,h)=(%d, %d), outlink(w, h): (%d, %d)", 
+        out ? out->width: -1, 
+        out ? out->height: -1, 
+		outlink ? outlink->w: -1, 
+		outlink ? outlink->h: -1);  
+
     out = ff_get_video_buffer(outlink, outlink->w, outlink->h);
     if (!out) {
         ret = AVERROR(ENOMEM);
         goto err;
     }
-
+	
+    spllog(1, "out_frame(w,h)=(%d, %d)", 
+        out ? out->width: -1, 
+        out ? out->height: -1);  
+		
     if (scale->in_color_matrix != -1)
         in->colorspace = scale->in_color_matrix;
     if (scale->in_primaries != -1)
@@ -839,11 +854,17 @@ scale:
         in->flags &= ~AV_FRAME_FLAG_INTERLACED;
 
     av_frame_copy_props(out, in);
+	
     out->width  = outlink->w;
     out->height = outlink->h;
     out->color_range = outlink->color_range;
     out->colorspace = outlink->colorspace;
     out->alpha_mode = outlink->alpha_mode;
+	
+    spllog(1, "out_frame(w,h)=(%d, %d)", 
+        out ? out->width: -1, 
+        out ? out->height: -1);  
+	
     if (scale->out_chroma_loc != AVCHROMA_LOC_UNSPECIFIED)
         out->chroma_location = scale->out_chroma_loc;
     if (scale->out_primaries != -1)
@@ -854,11 +875,18 @@ scale:
     if (out->width != in->width || out->height != in->height) {
         av_frame_side_data_remove_by_props(&out->side_data, &out->nb_side_data,
                                            AV_SIDE_DATA_PROP_SIZE_DEPENDENT);
+        spllog(1, "out_frame(w,h)=(%d, %d)", 
+            out ? out->width: -1, 
+            out ? out->height: -1);    
+
     }
 
     if (in->color_primaries != out->color_primaries || in->color_trc != out->color_trc) {
         av_frame_side_data_remove_by_props(&out->side_data, &out->nb_side_data,
                                            AV_SIDE_DATA_PROP_COLOR_DEPENDENT);
+        spllog(1, "out_frame(w,h)=(%d, %d)", 
+            out ? out->width: -1, 
+            out ? out->height: -1);                                             
     }
 
     if (scale->reset_sar) {
@@ -869,6 +897,11 @@ scale:
                 (int64_t)in->sample_aspect_ratio.den * outlink->w * link->h,
                 INT_MAX);
     }
+
+    spllog(1, "out_frame(w,h)=(%d, %d)", 
+        out ? out->width: -1, 
+        out ? out->height: -1);    
+
 
     if (sws_is_noop(out, in)) {
         av_frame_free(&out);
@@ -889,6 +922,11 @@ scale:
     if (ret < 0)
         av_frame_free(&out);
     *frame_out = out;
+
+    spllog(1, "out_frame(w,h)=(%d, %d)", 
+        out ? out->width: -1, 
+        out ? out->height: -1);    
+
     return ret;
 
 err:
@@ -946,12 +984,21 @@ static int do_scale(FFFrameSync *fs)
         }
     }
 
+    spllog(1, "frame(w,h)=(%d, %d)", 
+        out ? out->width: -1, 
+        out ? out->height: -1);    
+
     ret = scale_frame(ctx->inputs[0], &in, &out);
     if (ret < 0)
         goto err;
 
     av_assert0(out);
     out->pts = av_rescale_q(fs->pts, fs->time_base, outlink->time_base);
+
+    spllog(1, "frame(w,h)=(%d, %d)", 
+        out ? out->width: -1, 
+        out ? out->height: -1);    
+
     return ff_filter_frame(outlink, out);
 
 err:

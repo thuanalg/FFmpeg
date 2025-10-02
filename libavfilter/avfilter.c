@@ -1005,6 +1005,11 @@ AVBufferRef *avfilter_link_get_hw_frames_ctx(AVFilterLink *link)
 
 static int default_filter_frame(AVFilterLink *link, AVFrame *frame)
 {
+
+    spllog(1, "frame(w,h)=(%d, %d)", 
+        frame ? frame->width: -1, 
+        frame ? frame->height: -1);    
+
     return ff_filter_frame(link->dst->outputs[0], frame);
 }
 
@@ -1108,9 +1113,11 @@ int ff_filter_frame(AVFilterLink *link, AVFrame *frame)
     li->l.frame_count_in++;
     li->l.sample_count_in += frame->nb_samples;
     filter_unblock(link->dst);
+
     spllog(1, "frame(w,h)=(%d, %d)", 
         frame ? frame->width: -1, 
         frame ? frame->height: -1);    
+
     ret = ff_framequeue_add(&li->fifo, frame);
     if (ret < 0) {
         av_frame_free(&frame);

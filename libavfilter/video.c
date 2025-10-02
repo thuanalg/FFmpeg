@@ -33,6 +33,7 @@
 #include "filters.h"
 #include "framepool.h"
 #include "video.h"
+#include <simplelog.h>
 
 const AVFilterPad ff_video_default_filterpad[1] = {
     {
@@ -67,6 +68,10 @@ AVFrame *ff_default_get_video_buffer2(AVFilterLink *link, int w, int h, int alig
         if (ret < 0)
             av_frame_free(&frame);
 
+        spllog(1, "frame(w,h)=(%d, %d)", 
+            frame ? frame->width: -1, 
+            frame ? frame->height: -1);  
+
         return frame;
     }
 
@@ -97,15 +102,26 @@ AVFrame *ff_default_get_video_buffer2(AVFilterLink *link, int w, int h, int alig
         }
     }
 
+    spllog(1, "frame(w,h)=(%d, %d)", 
+        frame ? frame->width: -1, 
+        frame ? frame->height: -1);  
+
     frame = ff_frame_pool_get(li->frame_pool);
     if (!frame)
         return NULL;
+
+    spllog(1, "frame(w,h)=(%d, %d)", 
+        frame ? frame->width: -1, 
+        frame ? frame->height: -1);  
 
     frame->sample_aspect_ratio = link->sample_aspect_ratio;
     frame->colorspace  = link->colorspace;
     frame->color_range = link->color_range;
     frame->alpha_mode  = link->alpha_mode;
 
+    spllog(1, "frame(w,h)=(%d, %d)", 
+        frame ? frame->width: -1, 
+        frame ? frame->height: -1); 
     return frame;
 }
 
