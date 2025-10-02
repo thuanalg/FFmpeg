@@ -724,7 +724,7 @@ int show_codecs(void *optctx, const char *opt, const char *arg)
 
         printf("\n");
     }
-    av_free(codecs);
+    av_spl_free(codecs);
     return 0;
 }
 
@@ -768,7 +768,7 @@ static int print_codecs(int encoder)
             printf("\n");
         }
     }
-    av_free(codecs);
+    av_spl_free(codecs);
     return 0;
 }
 
@@ -1171,7 +1171,7 @@ int init_report(const char *env, FILE **file)
             env++;
         count++;
         if (!strcmp(key, "file")) {
-            av_free(filename_template);
+            av_spl_free(filename_template);
             filename_template = val;
             val = NULL;
         } else if (!strcmp(key, "level")) {
@@ -1179,23 +1179,23 @@ int init_report(const char *env, FILE **file)
             report_file_level = strtol(val, &tail, 10);
             if (*tail) {
                 av_log(NULL, AV_LOG_FATAL, "Invalid report file level\n");
-                av_free(key);
-                av_free(val);
-                av_free(filename_template);
+                av_spl_free(key);
+                av_spl_free(val);
+                av_spl_free(filename_template);
                 return AVERROR(EINVAL);
             }
             envlevel = 1;
         } else {
             av_log(NULL, AV_LOG_ERROR, "Unknown key '%s' in FFREPORT\n", key);
         }
-        av_free(val);
-        av_free(key);
+        av_spl_free(val);
+        av_spl_free(key);
     }
 
     av_bprint_init(&filename, 0, AV_BPRINT_SIZE_AUTOMATIC);
     expand_filename_template(&filename,
                              av_x_if_null(filename_template, "%p-%t.log"), tm);
-    av_free(filename_template);
+    av_spl_free(filename_template);
     if (!av_bprint_is_complete(&filename)) {
         av_log(NULL, AV_LOG_ERROR, "Out of memory building report file name\n");
         return AVERROR(ENOMEM);
@@ -1461,7 +1461,7 @@ int show_sources(void *optctx, const char *opt, const char *arg)
     } while (fmt);
   fail:
     av_dict_free(&opts);
-    av_free(dev);
+    av_spl_free(dev);
     av_log_set_level(error_level);
     return ret;
 }
@@ -1497,7 +1497,7 @@ int show_sinks(void *optctx, const char *opt, const char *arg)
     } while (fmt);
   fail:
     av_dict_free(&opts);
-    av_free(dev);
+    av_spl_free(dev);
     av_log_set_level(error_level);
     return ret;
 }
