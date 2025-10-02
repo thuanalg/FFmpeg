@@ -830,11 +830,13 @@ scale:
         ret = AVERROR(ENOMEM);
         goto err;
     }
-	
+#if 0	
     spllog(1, "out_frame(w,h)=(%d, %d)", 
         out ? out->width: -1, 
         out ? out->height: -1);  
-		
+#else
+    spl_vframe(out);         
+#endif		
     if (scale->in_color_matrix != -1)
         in->colorspace = scale->in_color_matrix;
     if (scale->in_primaries != -1)
@@ -859,9 +861,7 @@ scale:
     out->colorspace = outlink->colorspace;
     out->alpha_mode = outlink->alpha_mode;
 	
-    spllog(1, "out_frame(w,h)=(%d, %d)", 
-        out ? out->width: -1, 
-        out ? out->height: -1);  
+    spl_vframe(out); 
 	
     if (scale->out_chroma_loc != AVCHROMA_LOC_UNSPECIFIED)
         out->chroma_location = scale->out_chroma_loc;
@@ -896,9 +896,7 @@ scale:
                 INT_MAX);
     }
 
-    spllog(1, "out_frame(w,h)=(%d, %d)", 
-        out ? out->width: -1, 
-        out ? out->height: -1);    
+    spl_vframe(out); 
 
 
     if (sws_is_noop(out, in)) {
@@ -921,9 +919,7 @@ scale:
         av_frame_free(&out);
     *frame_out = out;
 
-    spllog(1, "out_frame(w,h)=(%d, %d)", 
-        out ? out->width: -1, 
-        out ? out->height: -1);    
+    spl_vframe(out);    
 
     return ret;
 

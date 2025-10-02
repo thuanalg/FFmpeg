@@ -784,7 +784,7 @@ typedef struct AVFrame {
 
 #ifndef spl_vframe
 #define spl_vframe(__fr__) { unsigned int * pdata = 0; pdata = (__fr__) ? (unsigned int*)(__fr__)->data[0] : 0;\
-spllog(1, "f(w,h,fmt): (%d, %d, %d), linesize[0]: %d, [%x, %x, %x, %x]", \
+spllog(1, "f(w,h,fmt,sample_rate): (%d, %d, %d, %d), linesize[0]: %d, [%x, %x, %x, %x]", \
             (__fr__) ? (__fr__)->width : -1, \
             (__fr__) ? (__fr__)->height : -1, \
             (__fr__) ? (__fr__)->format : -1, \
