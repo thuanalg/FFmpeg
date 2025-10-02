@@ -708,6 +708,7 @@ int avcodec_is_open(AVCodecContext *s)
 int attribute_align_arg avcodec_receive_frame(AVCodecContext *avctx, AVFrame *frame)
 {
     int ret = 0;
+    unsigned int * pdata = 0;
     av_frame_unref(frame);
 
     
@@ -718,8 +719,9 @@ int attribute_align_arg avcodec_receive_frame(AVCodecContext *avctx, AVFrame *fr
     
     if (ff_codec_is_decoder(avctx->codec)) {
         ret = ff_decode_receive_frame(avctx, frame);
-        spllog(1, "c(w,h): (%d, %d), (w,h): (%d, %d), "
-            "cctx->frame_num: %d, codec: %d, linesize[0]: %d", 
+        pdata = frame ? (unsigned int*)frame->data[0] : 0;
+        spllog(1, "c(w,h): (%d, %d), (w,h): (%d, %d), \n"
+            "cctx->frame_num: %d, codec: %d, linesize[0]: %d, [%x, %x, %x, %x]", 
             avctx ? avctx->width : -1, 
             avctx ? avctx->height : -1,
             frame ? frame->width : -1, 
@@ -727,12 +729,15 @@ int attribute_align_arg avcodec_receive_frame(AVCodecContext *avctx, AVFrame *fr
             avctx ? avctx->frame_num : -1, 
             avctx ? (avctx->codec_id) : -1, 
             frame ? frame->sample_rate : -1, 
-            frame ? frame->linesize[0] : -1);        
+            frame ? frame->linesize[0] : -1,
+            pdata ? pdata[0] : 0, pdata ? pdata[1] : 0, 
+            pdata ? pdata[2] : 0, pdata ? pdata[3] : 0);       
         return ret;
     }
     ret = ff_encode_receive_frame(avctx, frame);
-    spllog(1, "c(w,h): (%d, %d), (w,h): (%d, %d), "
-        "cctx->frame_num: %d, codec: %d, linesize[0]: %d", 
+    pdata = frame ? (unsigned int*)frame->data[0] : 0;
+    spllog(1, "c(w,h): (%d, %d), (w,h): (%d, %d), \n"
+        "cctx->frame_num: %d, codec: %d, linesize[0]: %d, [%x, %x, %x, %x]", 
         avctx ? avctx->width : -1, 
         avctx ? avctx->height : -1,
         frame ? frame->width : -1, 
@@ -740,7 +745,8 @@ int attribute_align_arg avcodec_receive_frame(AVCodecContext *avctx, AVFrame *fr
         avctx ? avctx->frame_num : -1, 
         avctx ? (avctx->codec_id) : -1, 
         frame ? frame->sample_rate : -1, 
-        frame ? frame->linesize[0] : -1);         
+        frame ? frame->linesize[0] : -1,
+        pdata ? pdata[0] : 0, pdata ? pdata[1] : 0, pdata ? pdata[2] : 0, pdata ? pdata[3] : 0);         
     return ret;
 }
 

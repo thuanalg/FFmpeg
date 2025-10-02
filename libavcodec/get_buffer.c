@@ -89,7 +89,7 @@ static int update_frame_pool(AVCodecContext *avctx, AVFrame *frame)
         int unaligned;
         ptrdiff_t linesize1[4];
         size_t size[4];
-
+        spllog(1, "f(w,h)=(%d, %d)", w, h);
         avcodec_align_dimensions2(avctx, &w, &h, pool->stride_align);
 
         do {

@@ -48,6 +48,11 @@ struct FFFramePool {
     AVBufferPool *pools[4];
 
 };
+#define spllog_vpool(__pool__) {spllog(1, "(type, w, h, fmt)=(%d, %d, %d, %d)", \
+    (__pool__)->type, (__pool__)->width, (__pool__)->height, (__pool__)->format);}
+
+#define spllog_apool(__pool__) {spllog(1, "(type, nb_samples, fmt)=(%d, %d, %d, %d)", \
+    (__pool__)->type, (__pool__)->nb_samples,  (__pool__)->format);}    
 
 FFFramePool *ff_frame_pool_video_init(AVBufferRef* (*alloc)(size_t size),
                                       int width,
@@ -69,7 +74,7 @@ FFFramePool *ff_frame_pool_video_init(AVBufferRef* (*alloc)(size_t size),
     pool->height = height;
     pool->format = format;
     pool->align = align;
-
+    spllog_vpool(pool);
     if ((ret = av_image_check_size2(width, height, INT64_MAX, format, 0, NULL)) < 0) {
         goto fail;
     }
@@ -133,7 +138,7 @@ FFFramePool *ff_frame_pool_audio_init(AVBufferRef* (*alloc)(size_t size),
     pool->nb_samples = nb_samples;
     pool->format = format;
     pool->align = align;
-
+    spllog_apool(pool);
     ret = av_samples_get_buffer_size(&pool->linesize[0], channels,
                                      nb_samples, format, 0);
     if (ret < 0)
