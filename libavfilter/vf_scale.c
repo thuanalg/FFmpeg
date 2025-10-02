@@ -752,9 +752,7 @@ static int scale_frame(AVFilterLink *link, AVFrame **frame_in,
     char buf[32];
     int ret, flags_orig, frame_changed;
 
-    spllog(1, "in_frame(w,h)=(%d, %d)", 
-        in ? in->width: -1, 
-        in ? in->height: -1);    
+    spl_vframe(in);    
 
 
     *frame_in = NULL;

@@ -704,7 +704,18 @@ int avcodec_is_open(AVCodecContext *s)
 {
     return !!s->internal;
 }
-
+#ifndef spl_vframe
+#define spl_vframe(__fr__) { unsigned int * pdata = 0; pdata = (__fr__) ? (unsigned int*)(__fr__)->data[0] : 0;\
+spllog(1, "f(w,h,fmt): (%d, %d, %d), linesize[0]: %d, [%x, %x, %x, %x]", \
+            (__fr__) ? (__fr__)->width : -1, \
+            (__fr__) ? (__fr__)->height : -1, \
+            (__fr__) ? (__fr__)->format : -1, \
+            (__fr__) ? (__fr__)->sample_rate : -1, \
+            (__fr__) ? (__fr__)->linesize[0] : -1, \
+            pdata ? pdata[0] : 0, pdata ? pdata[1] : 0, \
+            pdata ? pdata[2] : 0, pdata ? pdata[3] : 0);  \
+}
+#endif
 int attribute_align_arg avcodec_receive_frame(AVCodecContext *avctx, AVFrame *frame)
 {
     int ret = 0;
@@ -719,7 +730,8 @@ int attribute_align_arg avcodec_receive_frame(AVCodecContext *avctx, AVFrame *fr
     
     if (ff_codec_is_decoder(avctx->codec)) {
         ret = ff_decode_receive_frame(avctx, frame);
-        pdata = frame ? (unsigned int*)frame->data[0] : 0;
+#if 0        
+        pdata = frame ? (unsigned int*)frame->data[0] : 0;        
         spllog(1, "c(w,h): (%d, %d), (w,h): (%d, %d), \n"
             "cctx->frame_num: %d, codec: %d, linesize[0]: %d, [%x, %x, %x, %x]", 
             avctx ? avctx->width : -1, 
@@ -731,7 +743,10 @@ int attribute_align_arg avcodec_receive_frame(AVCodecContext *avctx, AVFrame *fr
             frame ? frame->sample_rate : -1, 
             frame ? frame->linesize[0] : -1,
             pdata ? pdata[0] : 0, pdata ? pdata[1] : 0, 
-            pdata ? pdata[2] : 0, pdata ? pdata[3] : 0);       
+            pdata ? pdata[2] : 0, pdata ? pdata[3] : 0);    
+#else
+        spl_vframe(frame);
+#endif               
         return ret;
     }
     ret = ff_encode_receive_frame(avctx, frame);
