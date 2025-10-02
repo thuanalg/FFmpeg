@@ -207,17 +207,20 @@ AVFrame *ff_frame_pool_get(FFFramePool *pool)
         if (!desc) {
             goto fail;
         }
-
-        spllog(1, "frame(w,h)=(%d, %d), pool(w, h) = (%d, %d)", 
+       
+        spllog(1, "frame(w,h)=(%d, %d), pool(w, h) = (%d, %d), format: :%d", 
             frame ? frame->width: -1, 
             frame ? frame->height: -1, 
             pool ? pool->width: -1, 
-            pool ? pool->height: -1);    
+            pool ? pool->height: -1, 
+            pool ? pool->format: -1);    
 
         frame->width = pool->width;
         frame->height = pool->height;
         frame->format = pool->format;
-
+        if(pool->width < 1000) {
+            spllog(1, "---");
+        }
         for (i = 0; i < 4; i++) {
             frame->linesize[i] = pool->linesize[i];
             if (!pool->pools[i])
@@ -230,9 +233,9 @@ AVFrame *ff_frame_pool_get(FFFramePool *pool)
             frame->data[i] = (uint8_t *)FFALIGN((uintptr_t)frame->buf[i]->data, pool->align);
         }
 
-        spllog(1, "frame(w,h)=(%d, %d)", 
+        spllog(1, "frame(w,h)=(%d, %d), (desc->flags & AV_PIX_FMT_FLAG_PAL): %d", 
             frame ? frame->width: -1, 
-            frame ? frame->height: -1);    
+            frame ? frame->height: -1, !!(desc->flags & AV_PIX_FMT_FLAG_PAL));    
 
         if (desc->flags & AV_PIX_FMT_FLAG_PAL) {
             enum AVPixelFormat format =
