@@ -33,7 +33,7 @@
 #include "avdevice.h"
 #include "libavformat/internal.h"
 #include "libavformat/mux.h"
-
+#include "libavutil/mem.h"
 #include "oss.h"
 
 static int audio_write_header(AVFormatContext *s1)

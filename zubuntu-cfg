@@ -1,0 +1,9 @@
+./configure \
+  --prefix=/usr/local \
+  --enable-gpl \
+  --enable-libopus \
+  --enable-shared \
+  --disable-stripping --enable-libx264 --enable-libx264 --enable-libx265\
+  --enable-debug=3 \
+  --extra-cflags="-g" \
+  --extra-ldflags="-g"

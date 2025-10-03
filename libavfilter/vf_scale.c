@@ -747,7 +747,7 @@ static int scale_frame(AVFilterLink *link, AVFrame **frame_in,
     AVFilterContext *ctx = link->dst;
     ScaleContext *scale = ctx->priv;
     AVFilterLink *outlink = ctx->outputs[0];
-    AVFrame *out, *in = *frame_in;
+    AVFrame *out = 0, *in = *frame_in;
     const AVPixFmtDescriptor *desc = av_pix_fmt_desc_get(link->format);
     char buf[32];
     int ret, flags_orig, frame_changed;
@@ -933,7 +933,7 @@ static int do_scale(FFFrameSync *fs)
     AVFilterContext *ctx = fs->parent;
     ScaleContext *scale = ctx->priv;
     AVFilterLink *outlink = ctx->outputs[0];
-    AVFrame *out, *in = NULL, *ref = NULL;
+    AVFrame *out =0, *in = NULL, *ref = NULL;
     int ret = 0, frame_changed;
 
     ret = ff_framesync_get_frame(fs, 0, &in, 1);
