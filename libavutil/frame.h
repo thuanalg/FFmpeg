@@ -782,18 +782,20 @@ typedef struct AVFrame {
     enum AVAlphaMode alpha_mode;
 } AVFrame;
 
+
 #ifndef spl_vframe
-#define spl_vframe(__fr__) { unsigned int * pdata = 0; pdata = (__fr__) ? (unsigned int*)(__fr__)->data[0] : 0;\
-spllog(1, "f(w,h,fmt,sample_rate): (%d, %d, %d, %d), linesize[0]: %d, [%x, %x, %x, %x]", \
-            (__fr__) ? (__fr__)->width : -1, \
-            (__fr__) ? (__fr__)->height : -1, \
-            (__fr__) ? (__fr__)->format : -1, \
-            (__fr__) ? (__fr__)->sample_rate : -1, \
-            (__fr__) ? (__fr__)->linesize[0] : -1, \
+#define spl_vframe(__fr__) do{ unsigned int * pdata = 0; if(!(__fr__)) break; pdata = (__fr__) ? (unsigned int*)(__fr__)->data[0] : 0;\
+if(!pdata) break; spllog(1, "f(w,h,fmt,sample_rate): (%d, %d, %d, %d), linesize[0]: %d, [%x, %x, %x, %x]", \
+            (__fr__)->width  , \
+            (__fr__)->height , \
+            (__fr__)->format , \
+            (__fr__)->sample_rate , \
+            (__fr__)->linesize[0] , \
             pdata ? pdata[0] : 0, pdata ? pdata[1] : 0, \
             pdata ? pdata[2] : 0, pdata ? pdata[3] : 0);  \
-}
+} while(0);
 #endif
+
 /**
  * Allocate an AVFrame and set its fields to default values.  The resulting
  * struct must be freed using av_frame_free().

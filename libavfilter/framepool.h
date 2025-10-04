@@ -32,6 +32,23 @@
  */
 typedef struct FFFramePool FFFramePool;
 
+#ifndef spl_vpool
+#define spl_vpool(__pool__) \
+do { if(!(__pool__)) break; spllog(1, "vpool(type, w, h, fmt, planes, channels, nb_samples, "\
+    "linesize[0])=(%d, %d, %d, %d, %d, %d, %d, %d, %d)", \
+    (__pool__)->type, (__pool__)->width, (__pool__)->height, (__pool__)->format, \
+    (__pool__)->planes, (__pool__)->channels, (__pool__)->nb_samples, (__pool__)->nb_samples, \
+    (__pool__)->linesize[0]);\
+} while(0);
+
+#endif
+
+#ifndef spl_apool
+#define spl_apool(__pool__) do { if(!(__pool__)) break; spllog(1, "(type, w, h, fmt, planes, channels, nb_samples)=(%d, %d, %d, %d, %d, %d, %d)", \
+    (__pool__)->type, (__pool__)->width, (__pool__)->height, (__pool__)->format, (__pool__)->planes, (__pool__)->channels, (__pool__)->nb_samples);} while(0);
+
+#endif
+
 /**
  * Allocate and initialize a video frame pool.
  *

@@ -896,7 +896,7 @@ scale:
                 INT_MAX);
     }
 
-    spl_vframe(out); 
+    
 
 
     if (sws_is_noop(out, in)) {
@@ -910,16 +910,17 @@ scale:
         out->format = AV_PIX_FMT_BGR8;
         avpriv_set_systematic_pal2((uint32_t*) out->data[1], out->format);
     }
-
+    spl_vframe(in);    
+    spl_vframe(out); 
     ret = sws_scale_frame(scale->sws, out, in);
+    spl_vframe(out); 
+    
     av_frame_free(&in);
     out->flags = flags_orig;
     out->format = outlink->format; /* undo PAL8 handling */
     if (ret < 0)
         av_frame_free(&out);
     *frame_out = out;
-
-    spl_vframe(out);    
 
     return ret;
 
