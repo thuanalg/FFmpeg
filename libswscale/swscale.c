@@ -1396,7 +1396,8 @@ int sws_scale_frame(SwsContext *sws, AVFrame *dst, const AVFrame *src)
             if (ret < 0)
                 return ret;
         }
-
+        spl_vframe(src);
+        spl_vframe(dst);
         for (int field = 0; field < 2; field++) {
             SwsGraph *graph = c->graph[field];
             uint8_t *dst_data[4], *src_data[4];
