@@ -211,6 +211,7 @@ static void run_legacy_unscaled(const SwsImg *out, const SwsImg *in_base,
 
     c->convert_unscaled(c, (const uint8_t *const *) in.data, in.linesize, y, h,
                         out->data, out->linesize);
+    
 }
 
 static void run_legacy_swscale(const SwsImg *out_base, const SwsImg *in,
@@ -219,9 +220,10 @@ static void run_legacy_swscale(const SwsImg *out_base, const SwsImg *in,
     SwsContext *sws = slice_ctx(pass, y);
     SwsInternal *c = sws_internal(sws);
     const SwsImg out = ff_sws_img_shift(out_base, y);
-
+    spl_d4int(in->data[0]);
     ff_swscale(c, (const uint8_t *const *) in->data, in->linesize, 0,
                sws->src_h, out.data, out.linesize, y, h);
+    spl_d4int(out.data[0]);
 }
 
 static void get_chroma_pos(SwsGraph *graph, int *h_chr_pos, int *v_chr_pos,
@@ -681,8 +683,10 @@ static void sws_graph_worker(void *priv, int jobnr, int threadnr, int nb_jobs,
     const SwsImg *output = pass->output.fmt != AV_PIX_FMT_NONE ? &pass->output : &graph->exec.output;
     const int slice_y = jobnr * pass->slice_h;
     const int slice_h = FFMIN(pass->slice_h, pass->height - slice_y);
-    spllog(1, "---");
+    spllog(1, "---pass->run is run_legacy_swscale");
+    /*pass->run for video: run_legacy_swscale*/
     pass->run(output, input, slice_y, slice_h, pass);
+    spl_d4int(output->data[0]);
 }
 
 int ff_sws_graph_create(SwsContext *ctx, const SwsFormat *dst, const SwsFormat *src,
@@ -802,10 +806,11 @@ void ff_sws_graph_run(SwsGraph *graph, uint8_t *const out_data[4],
         const SwsPass *pass = graph->passes[i];
         graph->exec.pass = pass;
         if (pass->setup) {
-            spllog(1, "pass->output.fmt: %d, i: %d", (int)pass->output.fmt, i);
+            spllog(1, "setup == setup_legacy_swscale  pass->output.fmt: %d, i: %d, pass->input: %p", 
+                (int)pass->output.fmt, i, pass->input);
             pass->setup(pass->output.fmt != AV_PIX_FMT_NONE ? &pass->output : out,
                         pass->input ? &pass->input->output : in, pass);
-            /*spl_d4int(out_data[0]);*/            
+            /*spl_d4int(out_data[0]); setup == setup_legacy_swscale for video*/            
             
         }
         avpriv_slicethread_execute(graph->slicethread, pass->num_slices, 0);
