@@ -681,7 +681,7 @@ static void sws_graph_worker(void *priv, int jobnr, int threadnr, int nb_jobs,
     const SwsImg *output = pass->output.fmt != AV_PIX_FMT_NONE ? &pass->output : &graph->exec.output;
     const int slice_y = jobnr * pass->slice_h;
     const int slice_h = FFMIN(pass->slice_h, pass->height - slice_y);
-
+    spllog(1, "---");
     pass->run(output, input, slice_y, slice_h, pass);
 }
 
@@ -802,9 +802,13 @@ void ff_sws_graph_run(SwsGraph *graph, uint8_t *const out_data[4],
         const SwsPass *pass = graph->passes[i];
         graph->exec.pass = pass;
         if (pass->setup) {
+            spllog(1, "pass->output.fmt: %d, i: %d", (int)pass->output.fmt, i);
             pass->setup(pass->output.fmt != AV_PIX_FMT_NONE ? &pass->output : out,
                         pass->input ? &pass->input->output : in, pass);
+            /*spl_d4int(out_data[0]);*/            
+            
         }
         avpriv_slicethread_execute(graph->slicethread, pass->num_slices, 0);
+        /*spl_d4int(out_data[0]); --process data here*/    
     }
 }

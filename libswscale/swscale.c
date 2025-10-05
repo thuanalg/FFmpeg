@@ -286,8 +286,9 @@ int ff_swscale(SwsInternal *c, const uint8_t *const src[], const int srcStride[]
     const int chrSrcSliceH           = AV_CEIL_RSHIFT(srcSliceH,   c->chrSrcVSubSample);
     int should_dither                = isNBPS(c->opts.src_format) ||
                                        is16BPS(c->opts.src_format);
-    int lastDstY;
-
+    int lastDstY = 0;
+    spl_d4int(src[0]);
+    
     /* vars which will change and which we need to store back in the context */
     int dstY         = c->dstY;
     int lastInLumBuf = c->lastInLumBuf;
@@ -559,7 +560,7 @@ int ff_swscale(SwsInternal *c, const uint8_t *const src[], const int srcStride[]
     c->dstY         = dstY;
     c->lastInLumBuf = lastInLumBuf;
     c->lastInChrBuf = lastInChrBuf;
-
+    
     return dstY - lastDstY;
 }
 
@@ -1182,12 +1183,13 @@ static int scale_internal(SwsContext *sws,
 
         /* replace on the same data */
         ff_rgb48Toxyz12(c, dst, dstStride2[0], dst, dstStride2[0], sws->dst_w, ret);
+       
     }
-
+    
     /* reset slice direction at end of frame */
     if ((srcSliceY_internal + srcSliceH == sws->src_h) || scale_dst)
         c->sliceDir = 0;
-
+   
     return ret;
 }
 
@@ -1400,17 +1402,20 @@ int sws_scale_frame(SwsContext *sws, AVFrame *dst, const AVFrame *src)
         spl_vframe(dst);
         for (int field = 0; field < 2; field++) {
             SwsGraph *graph = c->graph[field];
-            uint8_t *dst_data[4], *src_data[4];
-            int dst_linesize[4], src_linesize[4];
+            uint8_t *dst_data[4] = {0},  *src_data[4] = {0};
+            int dst_linesize[4] = {0}, src_linesize[4] = {0};
             get_frame_pointers(dst, dst_data, dst_linesize, field);
             get_frame_pointers(src, src_data, src_linesize, field);
             ff_sws_graph_run(graph, dst_data, dst_linesize,
                           (const uint8_t **) src_data, src_linesize);
+            spl_d4int(dst_data[0]);              
+                       
             if (!graph->dst.interlaced)
                 break;
+
         }
     }
-
+    spl_vframe(dst);
     return 0;
 }
 

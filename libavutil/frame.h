@@ -796,6 +796,14 @@ if(!pdata) break; spllog(1, "f(w,h,fmt,sample_rate): (%d, %d, %d, %d), linesize[
 } while(0);
 #endif
 
+#ifndef spl_d4int
+#define spl_d4int(__bytes__) do{ unsigned int *pdata = (unsigned int*)(__bytes__); if(!pdata) break;\
+spllog(1, "bytes(0,1,2,3): (%x, %x, %x, %x)", \
+            pdata[0] , pdata[1] , \
+            pdata[2] , pdata[3] );  \
+} while(0);
+#endif
+
 /**
  * Allocate an AVFrame and set its fields to default values.  The resulting
  * struct must be freed using av_frame_free().
