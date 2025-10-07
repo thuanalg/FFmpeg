@@ -1245,6 +1245,7 @@ int av_write_trailer(AVFormatContext *s)
     AVPacket *const pkt = si->parse_pkt;
     int ret1, ret = 0;
 
+    spllog(1, "---");
     for (unsigned i = 0; i < s->nb_streams; i++) {
         AVStream *const st  = s->streams[i];
         FFStream *const sti = ffstream(st);

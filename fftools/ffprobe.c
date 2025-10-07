@@ -3175,6 +3175,14 @@ int main(int argc, char **argv)
     char *buf;
     char *f_name = NULL, *f_args = NULL;
     int ret, input_ret, i;
+    
+    SPL_INPUT_ARG input = {0};
+    
+    snprintf(input.folder, 32, "%s", "z.cfg");
+    ret  = spl_init_log_ext(&input);
+    if(ret) {
+        fprintf(stderr, "spl_init_log_ext");
+    }
 
     init_dynload();
 
@@ -3328,6 +3336,6 @@ end:
         av_dict_free(&(sections[i].entries_to_show));
 
     avformat_network_deinit();
-
+    spl_finish_log();
     return ret < 0;
 }

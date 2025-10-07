@@ -3769,7 +3769,13 @@ int main(int argc, char **argv)
 {
     int flags, ret;
     VideoState *is;
-
+    SPL_INPUT_ARG input = {0};
+    
+    snprintf(input.folder, 32, "%s", "z.cfg");
+    ret  = spl_init_log_ext(&input);
+    if(ret) {
+        fprintf(stderr, "spl_init_log_ext");
+    }
     init_dynload();
 
     av_log_set_flags(AV_LOG_SKIP_REPEATED);
@@ -3901,6 +3907,6 @@ int main(int argc, char **argv)
     event_loop(is);
 
     /* never returns */
-
+    spl_finish_log();
     return 0;
 }
