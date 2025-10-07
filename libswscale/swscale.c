@@ -287,7 +287,8 @@ int ff_swscale(SwsInternal *c, const uint8_t *const src[], const int srcStride[]
     int should_dither                = isNBPS(c->opts.src_format) ||
                                        is16BPS(c->opts.src_format);
     int lastDstY = 0;
-    spl_d4int(src[0]);
+
+    spl_d4slice("+", srcSliceY, srcSliceH, src[0]);
     
     /* vars which will change and which we need to store back in the context */
     int dstY         = c->dstY;
@@ -560,7 +561,9 @@ int ff_swscale(SwsInternal *c, const uint8_t *const src[], const int srcStride[]
     c->dstY         = dstY;
     c->lastInLumBuf = lastInLumBuf;
     c->lastInChrBuf = lastInChrBuf;
-    
+
+    spl_d4slice("dst", dstSliceY, dstSliceH, dst[0]);
+
     return dstY - lastDstY;
 }
 
@@ -1408,8 +1411,7 @@ int sws_scale_frame(SwsContext *sws, AVFrame *dst, const AVFrame *src)
             get_frame_pointers(src, src_data, src_linesize, field);
             ff_sws_graph_run(graph, dst_data, dst_linesize,
                           (const uint8_t **) src_data, src_linesize);
-            spl_d4int(dst_data[0]);              
-                       
+                                  
             if (!graph->dst.interlaced)
                 break;
 

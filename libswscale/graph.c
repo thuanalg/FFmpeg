@@ -223,7 +223,11 @@ static void run_legacy_swscale(const SwsImg *out_base, const SwsImg *in,
     spl_d4int(in->data[0]);
     ff_swscale(c, (const uint8_t *const *) in->data, in->linesize, 0,
                sws->src_h, out.data, out.linesize, y, h);
+#if 0
     spl_d4int(out.data[0]);
+#else    
+    spl_d4slice("-", y, h, out.data[0]);
+#endif
 }
 
 static void get_chroma_pos(SwsGraph *graph, int *h_chr_pos, int *v_chr_pos,
@@ -686,7 +690,9 @@ static void sws_graph_worker(void *priv, int jobnr, int threadnr, int nb_jobs,
     spllog(1, "---pass->run is run_legacy_swscale");
     /*pass->run for video: run_legacy_swscale*/
     pass->run(output, input, slice_y, slice_h, pass);
+#if 0    
     spl_d4int(output->data[0]);
+#endif
 }
 
 int ff_sws_graph_create(SwsContext *ctx, const SwsFormat *dst, const SwsFormat *src,
