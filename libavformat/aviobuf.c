@@ -116,6 +116,7 @@ AVIOContext *avio_alloc_context(
                   int64_t (*seek)(void *opaque, int64_t offset, int whence))
 {
     FFIOContext *s = av_malloc(sizeof(*s));
+    spllog(1, "opaque: 0x%p", opaque);
     if (!s)
         return NULL;
     ffio_init_context(s, buffer, buffer_size, write_flag, opaque,

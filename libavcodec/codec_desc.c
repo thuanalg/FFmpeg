@@ -28,6 +28,7 @@
 #include "codec_id.h"
 #include "codec_desc.h"
 #include "profiles.h"
+#include <simplelog.h>
 
 #define MT(...) (const char *const[]){ __VA_ARGS__, NULL }
 
@@ -3814,12 +3815,16 @@ static int descriptor_compare(const void *key, const void *member)
 
 const AVCodecDescriptor *avcodec_descriptor_get(enum AVCodecID id)
 {
+    if(id == AV_CODEC_ID_H264) {
+        spllog(1, "--");
+    }
     return bsearch(&id, codec_descriptors, FF_ARRAY_ELEMS(codec_descriptors),
                    sizeof(codec_descriptors[0]), descriptor_compare);
 }
 
 const AVCodecDescriptor *avcodec_descriptor_next(const AVCodecDescriptor *prev)
 {
+    spllog(1, "--");
     if (!prev)
         return &codec_descriptors[0];
     if (prev - codec_descriptors < FF_ARRAY_ELEMS(codec_descriptors) - 1)

@@ -41,7 +41,7 @@ static void encode(AVCodecContext *enc_ctx, AVFrame *frame, AVPacket *pkt,
 {
     int ret;
     int nw = 0;
-
+    spllog(1, "enc_ctx: 0x%p", enc_ctx);
     /* send the frame to the encoder */
     if (frame)
         printf("Send frame %3"PRId64"\n", frame->pts);

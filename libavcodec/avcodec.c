@@ -149,6 +149,11 @@ int attribute_align_arg avcodec_open2(AVCodecContext *avctx, const AVCodec *code
     const FFCodec *codec2;
     const AVDictionaryEntry *e;
 
+    spllog(1, "avctx: 0x%p, codec: %d, options: 0x%p", 
+        avctx, 
+        codec ? codec->id: -1, 
+        options);
+
     if (avcodec_is_open(avctx))
         return 0;
 
@@ -711,6 +716,7 @@ int attribute_align_arg avcodec_receive_frame(AVCodecContext *avctx, AVFrame *fr
     unsigned int * pdata = 0;
     av_frame_unref(frame);
 
+    spllog(1, "de-avctx: 0x%p", avctx);
     
     if (!avcodec_is_open(avctx) || !avctx->codec) {
         spllog(4, "AVERROR(EINVAL)");

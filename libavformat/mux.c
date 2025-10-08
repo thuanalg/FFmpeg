@@ -470,7 +470,7 @@ int avformat_write_header(AVFormatContext *s, AVDictionary **options)
     int already_initialized = fci->initialized;
     int streams_already_initialized = fci->streams_initialized;
     int ret = 0;
-
+    spllog(1, "options: 0x%p", options);
     if (!already_initialized)
         if ((ret = avformat_init_output(s, options)) < 0)
             return ret;

@@ -415,7 +415,7 @@ int ffio_fdopen(AVIOContext **sp, URLContext *h)
     AVIOContext *s;
     uint8_t *buffer = NULL;
     int buffer_size, max_packet_size;
-
+    spllog(1, "filename: %s", h ? (h->filename ? h->filename : "==") : "--");
     max_packet_size = h->max_packet_size;
     if (max_packet_size) {
         buffer_size = max_packet_size; /* no need to bufferize more than one packet */

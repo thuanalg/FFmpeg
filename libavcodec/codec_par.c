@@ -139,7 +139,7 @@ int avcodec_parameters_from_context(AVCodecParameters *par,
                                     const AVCodecContext *codec)
 {
     int ret;
-
+    spllog(1, "codec: 0x%p", codec);
     codec_parameters_reset(par);
 
     par->codec_type = codec->codec_type;

@@ -507,7 +507,7 @@ int attribute_align_arg avcodec_send_frame(AVCodecContext *avctx, const AVFrame 
 {
     AVCodecInternal *avci = avctx->internal;
     int ret = 0;
-
+    spllog(1, "enc_ctx: 0x%p", avctx);
     spl_vframe(frame);
         
     if(frame && frame->width > 0) {

@@ -1066,7 +1066,7 @@ static av_cold int X264_init(AVCodecContext *avctx)
     AVCPBProperties *cpb_props;
     int sw,sh;
     int ret;
-
+    spllog(1, "profile avctx->codec_id: %d", avctx->codec_id);
     if (avctx->global_quality > 0)
         av_log(avctx, AV_LOG_WARNING, "-qscale is ignored, -crf is recommended.\n");
 

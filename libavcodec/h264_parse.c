@@ -533,7 +533,7 @@ int ff_h264_decode_extradata(const uint8_t *data, int size, H264ParamSets *ps,
 int ff_h264_get_profile(const SPS *sps)
 {
     int profile = sps->profile_idc;
-
+    spllog(1, "profile: %d", profile);
     switch (sps->profile_idc) {
     case AV_PROFILE_H264_BASELINE:
         // constraint_set1_flag set to 1

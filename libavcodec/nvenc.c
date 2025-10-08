@@ -1264,6 +1264,8 @@ static av_cold int nvenc_setup_h264_config(AVCodecContext *avctx)
     NV_ENC_CONFIG_H264 *h264               = &cc->encodeCodecConfig.h264Config;
     NV_ENC_CONFIG_H264_VUI_PARAMETERS *vui = &h264->h264VUIParameters;
 
+    spllog(1, "profile avctx->codec_id: %d", avctx->codec_id);
+
     const AVPixFmtDescriptor *pixdesc = av_pix_fmt_desc_get(ctx->data_pix_fmt);
 
     if ((pixdesc->flags & AV_PIX_FMT_FLAG_RGB) && !IS_GBRP(ctx->data_pix_fmt)) {
