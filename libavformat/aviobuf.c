@@ -230,8 +230,9 @@ void avio_flush(AVIOContext *s)
 {
     int seekback = s->write_flag ? FFMIN(0, s->buf_ptr - s->buf_ptr_max) : 0;
     flush_buffer(s);
-    if (seekback)
+    if (seekback) {
         avio_seek(s, seekback, SEEK_CUR);
+    }
 }
 
 int64_t avio_seek(AVIOContext *s, int64_t offset, int whence)

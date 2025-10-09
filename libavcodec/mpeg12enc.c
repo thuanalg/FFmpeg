@@ -1054,7 +1054,7 @@ static av_cold int encode_init(AVCodecContext *avctx)
     MPVEncContext     *const s = &m->s;
     int ret;
     int max_size = avctx->codec_id == AV_CODEC_ID_MPEG2VIDEO ? 16383 : 4095;
-
+    spllog(1, "profile avctx->codec_id: %d", avctx->codec_id);
     if (avctx->width > max_size || avctx->height > max_size) {
         av_log(avctx, AV_LOG_ERROR, "%s does not support resolutions above %dx%d\n",
                CONFIG_SMALL ? avctx->codec->name : avctx->codec->long_name,

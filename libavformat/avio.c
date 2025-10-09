@@ -619,7 +619,7 @@ int avio_close(AVIOContext *s)
     FFIOContext *const ctx = ffiocontext(s);
     URLContext *h;
     int ret, error;
-
+    spllog(1, "---");
     if (!s)
         return 0;
 

@@ -24,6 +24,7 @@
 #include "libavutil/macros.h"
 #include "defs.h"
 #include "dnxhddata.h"
+#include "simplelog.h"
 
 /* The quantization tables below are in zigzag order! */
 
@@ -1157,6 +1158,7 @@ int ff_dnxhd_find_cid(AVCodecContext *avctx, int bit_depth)
 void ff_dnxhd_print_profiles(AVCodecContext *avctx, int loglevel)
 {
     int i, j;
+    spllog(1, "profile");
     for (i = 0; i < FF_ARRAY_ELEMS(dnxhd_cid_table); i++) {
         const CIDEntry *cid = &dnxhd_cid_table[i];
         for (j = 0; j < FF_ARRAY_ELEMS(cid->bit_rates); j++) {

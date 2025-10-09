@@ -24,6 +24,7 @@
 #include <stdarg.h>
 #include "attributes.h"
 #include "version.h"
+#include <simplelog.h>
 
 typedef enum {
     AV_CLASS_CATEGORY_NA = 0,
