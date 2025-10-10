@@ -2050,11 +2050,29 @@ static int determinable_frame_size(const AVCodecContext *avctx)
 
     return 0;
 }
-
+int avtry_set_profile(AVStream* st, int profile, void *ctx) {
+    int ret = 0;
+    FFStream *sti = 0;
+    AVCodecContext *avctx = 0;
+    do {
+        if(!st) {
+            break;
+        }
+        sti = (FFStream *)st;
+        spllog(1, "sti->avctx: 0x%p", sti->avctx);
+        if(!sti->avctx) {
+            sti->avctx = ctx;
+            spllog(1, "sti->avctx: 0x%p", sti->avctx );
+        }
+        sti->avctx->profile = profile;
+    } while(0);
+    return ret;
+}
 static int has_codec_parameters(const AVStream *st, const char **errmsg_ptr)
 {
     const FFStream *const sti = cffstream(st);
     const AVCodecContext *const avctx = sti->avctx;
+    spl_avCodecCtx(avctx);
 
 #define FAIL(errmsg) do {                                         \
         if (errmsg_ptr)                                           \
@@ -3016,6 +3034,7 @@ int avformat_find_stream_info(AVFormatContext *ic, AVDictionary **options)
         /* We could not have all the codec parameters before EOF. */
         ret = -1;
     for (unsigned i = 0; i < ic->nb_streams; i++) {
+        int result = 0;
         AVStream *const st  = ic->streams[i];
         FFStream *const sti = ffstream(st);
         const char *errmsg;
@@ -3029,7 +3048,12 @@ int avformat_find_stream_info(AVFormatContext *ic, AVDictionary **options)
             if (ret < 0)
                 goto find_stream_info_err;
         }
+#if 1        
+        result = has_codec_parameters(st, &errmsg);
+        if (!result) {
+#else        
         if (!has_codec_parameters(st, &errmsg)) {
+#endif            
             char buf[256];
             avcodec_string(buf, sizeof(buf), sti->avctx, 0);
             av_log(ic, AV_LOG_WARNING,

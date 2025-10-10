@@ -205,8 +205,8 @@ int avcodec_parameters_from_context(AVCodecParameters *par,
 int avcodec_parameters_to_context(AVCodecContext *codec,
                                   const AVCodecParameters *par)
 {
-    int ret;
-
+    int ret = 0;
+    spllog(1, "---");
     codec->codec_type = par->codec_type;
     codec->codec_id   = par->codec_id;
     codec->codec_tag  = par->codec_tag;

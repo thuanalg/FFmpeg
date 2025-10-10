@@ -1932,6 +1932,11 @@ typedef struct AVCodecContext {
     enum AVAlphaMode alpha_mode;
 } AVCodecContext;
 
+#define spl_avCodecCtx(__ctx__) do { if(!(__ctx__)) break; spllog(1, \
+    "%s(profile, level, avctx->framerate.num)=(%d, %d, %d)", \
+    (!(__ctx__)->codec_type) ? "v" : ( ((__ctx__)->codec_type == 1) ? "s" : "?"), \
+    (__ctx__)->profile, (__ctx__)->level, (__ctx__)->framerate.num);\
+} while(0);
 /**
  * @defgroup lavc_hwaccel AVHWAccel
  *

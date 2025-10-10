@@ -2090,6 +2090,7 @@ AVProgram *av_new_program(AVFormatContext *s, int id);
 int avformat_alloc_output_context2(AVFormatContext **ctx, const AVOutputFormat *oformat,
                                    const char *format_name, const char *filename);
 
+int avtry_set_profile(AVStream* st, int profile, void *ctx);                                   
 /**
  * @addtogroup lavf_decoding
  * @{
@@ -2971,6 +2972,8 @@ int avformat_match_stream_specifier(AVFormatContext *s, AVStream *st,
                                     const char *spec);
 
 int avformat_queue_attached_pictures(AVFormatContext *s);
+
+
 
 #if FF_API_INTERNAL_TIMING
 enum AVTimebaseSource {

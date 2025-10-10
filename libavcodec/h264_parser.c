@@ -412,9 +412,12 @@ static inline int parse_nal_units(AVCodecParserContext *s,
             default:
                 s->format = AV_PIX_FMT_NONE;
             }
-
+            
+            spl_avCodecCtx(avctx);
             avctx->profile = ff_h264_get_profile(sps);
+
             avctx->level   = sps->level_idc;
+            spl_avCodecCtx(avctx);
 
             if (sps->frame_mbs_only_flag) {
                 p->picture_structure = PICT_FRAME;
@@ -589,14 +592,15 @@ static int h264_parse(AVCodecParserContext *s,
     H264ParseContext *p = s->priv_data;
     ParseContext *pc = &p->pc;
     AVRational time_base = { 0, 1 };
-    int next;
-
+    int next = 0;
+    spl_avCodecCtx(avctx);
     if (!p->got_first) {
         p->got_first = 1;
         if (avctx->extradata_size) {
             ff_h264_decode_extradata(avctx->extradata, avctx->extradata_size,
                                      &p->ps, &p->is_avc, &p->nal_length_size,
                                      avctx->err_recognition, avctx);
+            spl_avCodecCtx(avctx);
         }
     }
 
@@ -604,7 +608,7 @@ static int h264_parse(AVCodecParserContext *s,
         next = buf_size;
     } else {
         next = h264_find_frame_end(p, buf, buf_size, avctx);
-
+        spl_avCodecCtx(avctx);
         if (ff_combine_frame(pc, next, &buf, &buf_size) < 0) {
             *poutbuf      = NULL;
             *poutbuf_size = 0;
@@ -614,11 +618,12 @@ static int h264_parse(AVCodecParserContext *s,
         if (next < 0 && next != END_NOT_FOUND) {
             av_assert1(pc->last_index + next >= 0);
             h264_find_frame_end(p, &pc->buffer[pc->last_index + next], -next, avctx); // update state
+            spl_avCodecCtx(avctx);
         }
     }
-
+    spl_avCodecCtx(avctx);
     parse_nal_units(s, avctx, buf, buf_size);
-
+    spl_avCodecCtx(avctx);
     if (avctx->framerate.num)
         time_base = av_inv_q(av_mul_q(avctx->framerate, (AVRational){2, 1}));
     if (p->sei.picture_timing.cpb_removal_delay >= 0) {
