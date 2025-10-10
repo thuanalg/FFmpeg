@@ -1232,11 +1232,13 @@ int av_interleaved_write_frame(AVFormatContext *s, AVPacket *pkt)
         ret = write_packets_common(s, pkt, 1/*interleaved*/);
         if (ret < 0)
             av_packet_unref(pkt);
+        spl_avpkt(pkt);
         return ret;
     } else {
         av_log(s, AV_LOG_TRACE, "av_interleaved_write_frame FLUSH\n");
         return interleaved_write_packet(s, ffformatcontext(s)->parse_pkt, 1/*flush*/, 0);
     }
+    
 }
 
 int av_write_trailer(AVFormatContext *s)

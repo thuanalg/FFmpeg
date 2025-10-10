@@ -602,6 +602,11 @@ typedef struct AVPacket {
     AVRational time_base;
 } AVPacket;
 
+#define spl_avpkt(__pkt__) do {if(!(__pkt__)) break; spllog(1, "(pts, dts)=(%d, %d)", \
+    (__pkt__)->pts, \
+    (__pkt__)->dts);\
+} while(0);
+
 #if FF_API_INIT_PACKET
 attribute_deprecated
 typedef struct AVPacketList {

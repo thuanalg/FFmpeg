@@ -437,7 +437,7 @@ static int encode_send_frame_internal(AVCodecContext *avctx, const AVFrame *src)
     EncodeContext     *ec = encode_ctx(avci);
     AVFrame *dst = avci->buffer_frame;
     int ret;
-    spllog(1, "nb_samples (%d) > frame_size (%d)\n", 
+    spllog(1, "nb_samples (%d) > frame_size (%d)", 
         src ? src->nb_samples : -1 , avctx ? avctx->frame_size : -1);
     if (avctx->codec->type == AVMEDIA_TYPE_AUDIO) {
         /* extract audio service type metadata */

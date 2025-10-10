@@ -109,6 +109,7 @@ static int write_frame(AVFormatContext *fmt_ctx, AVCodecContext *c,
         /* Write the compressed frame to the media file. */
         log_packet(fmt_ctx, pkt);
         ret = av_interleaved_write_frame(fmt_ctx, pkt);
+        
         /* pkt is now blank (av_interleaved_write_frame() takes ownership of
          * its contents and resets pkt), so that no unreferencing is necessary.
          * This would be different if one used av_write_frame(). */
