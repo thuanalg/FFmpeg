@@ -1253,7 +1253,12 @@ int av_write_trailer(AVFormatContext *s)
 #endif    
     for (unsigned i = 0; i < s->nb_streams; i++) {
         AVStream *const st  = s->streams[i];
+#if 1
+        FFStream *sti = (FFStream *)st;
+#else       
         FFStream *const sti = ffstream(st);
+#endif        
+        spl_avCodecCtx(sti->avctx);
         if (sti->bsfc) {
             ret1 = write_packets_from_bsfs(s, st, pkt, 1/*interleaved*/);
             if (ret1 < 0)

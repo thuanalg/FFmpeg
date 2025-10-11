@@ -447,7 +447,12 @@ int avtext_print_string(AVTextFormatContext *tctx, const char *key, const char *
 {
     const AVTextFormatSection *section;
     int ret = 0;
-
+    if(strcmp(key, "encoder") == 0) {
+        if(strstr(val, "libx264")) {
+            spllog(1, "(key, val): (%s, %s)", key, val);
+        }
+    }
+    
     av_assert0(key && val && tctx->level >= 0 && tctx->level < SECTION_MAX_NB_LEVELS);
 
     section = tctx->section[tctx->level];

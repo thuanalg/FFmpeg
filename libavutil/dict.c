@@ -90,7 +90,12 @@ int av_dict_set(AVDictionary **pm, const char *key, const char *value,
     AVDictionaryEntry *tag = NULL;
     char *copy_key = NULL, *copy_value = NULL;
     int err;
-
+    if(strcmp(key, "encoder") == 0) {
+        if(strstr(value, "libx264")) {
+            spllog(1, "---");
+        }
+    }
+    spllog(1, "(key, val)=(%s, %s)", key, value);
     if (flags & AV_DICT_DONT_STRDUP_VAL)
         copy_value = (void *)value;
     else if (value)

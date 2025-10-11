@@ -837,7 +837,7 @@ int av_opt_set(void *obj, const char *name, const char *val, int search_flags)
     void *dst, *target_obj;
     const AVOption *o;
     int ret;
-
+    spllog(1, "(name, val)=(%s, %s)", name, val);
     ret = opt_set_init(obj, name, search_flags, 0, &target_obj, &o, &dst);
     if (ret < 0)
         return ret;
