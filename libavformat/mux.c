@@ -125,7 +125,11 @@ int avformat_alloc_output_context2(AVFormatContext **avctx, const AVOutputFormat
 
     s->oformat = oformat;
     if (ffofmt(s->oformat)->priv_data_size > 0) {
+#if 0        
         s->priv_data = av_mallocz(ffofmt(s->oformat)->priv_data_size);
+#else
+        av_spl_mallocz(ffofmt(s->oformat)->priv_data_size, s->priv_data);
+#endif        
         if (!s->priv_data)
             goto nomem;
         if (s->oformat->priv_class) {
@@ -335,7 +339,11 @@ static int init_muxer(AVFormatContext *s, AVDictionary **options)
                                  ff_interleave_packet_passthrough;
 
     if (!s->priv_data && of->priv_data_size > 0) {
+#if 0        
         s->priv_data = av_mallocz(of->priv_data_size);
+#else
+        av_spl_mallocz(of->priv_data_size, s->priv_data);
+#endif        
         if (!s->priv_data) {
             ret = AVERROR(ENOMEM);
             goto fail;
@@ -1401,8 +1409,12 @@ static int write_uncoded_frame_internal(AVFormatContext *s, int stream_index,
         pkt = NULL;
     } else {
         size_t   bufsize = sizeof(frame) + AV_INPUT_BUFFER_PADDING_SIZE;
+#if 0 
         AVFrame **framep = av_mallocz(bufsize);
-
+#else
+        AVFrame **framep = 0;
+        av_spl_mallocz(bufsize, framep);
+#endif
         if (!framep)
             goto fail;
         pkt->buf = av_buffer_create((void *)framep, bufsize,

@@ -109,7 +109,7 @@ int ffwr_open_input(FFWR_INSTREAM *pinput) {
             break;
         }
 
-		av_dict_set(&options, "rtbufsize", "100M", 0);        
+		av_dict_set(&options, "rtbufsize", "50M", 0);        
         result = avformat_open_input(&(pinput->fmt_ctx), 
             "video=Integrated Webcam", iformat, &options);
 

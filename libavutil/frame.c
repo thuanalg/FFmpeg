@@ -67,7 +67,11 @@ void av_frame_free(AVFrame **frame)
         return;
 
     av_frame_unref(*frame);
+#if 0    
     av_freep(frame);
+#else
+    av_spl_freep(frame);    
+#endif    
 }
 
 #define ALIGN (HAVE_SIMD_ALIGN_64 ? 64 : 32)
@@ -169,8 +173,13 @@ static int get_audio_buffer(AVFrame *frame, int align)
         frame->extended_buf  = av_calloc(planes - AV_NUM_DATA_POINTERS,
                                           sizeof(*frame->extended_buf));
         if (!frame->extended_data || !frame->extended_buf) {
+#if 0            
             av_freep(&frame->extended_data);
             av_freep(&frame->extended_buf);
+#else            
+            av_spl_freep(&frame->extended_data);
+            av_spl_freep(&frame->extended_buf);
+#endif            
             return AVERROR(ENOMEM);
         }
         frame->nb_extended_buf = planes - AV_NUM_DATA_POINTERS;
@@ -444,7 +453,7 @@ int av_frame_replace(AVFrame *dst, const AVFrame *src)
     } else if (dst->extended_buf) {
         for (int i = 0; i < dst->nb_extended_buf; i++)
             av_buffer_unref(&dst->extended_buf[i]);
-        av_freep(&dst->extended_buf);
+        av_spl_freep(&dst->extended_buf);
     }
 
     ret = av_buffer_replace(&dst->hw_frames_ctx, src->hw_frames_ctx);
@@ -452,7 +461,7 @@ int av_frame_replace(AVFrame *dst, const AVFrame *src)
         goto fail;
 
     if (dst->extended_data != dst->data)
-        av_freep(&dst->extended_data);
+        av_spl_freep(&dst->extended_data);
 
     if (src->extended_data != src->data) {
         int ch = dst->ch_layout.nb_channels;
@@ -504,7 +513,7 @@ void av_frame_unref(AVFrame *frame)
         av_buffer_unref(&frame->buf[i]);
     for (int i = 0; i < frame->nb_extended_buf; i++)
         av_buffer_unref(&frame->extended_buf[i]);
-    av_freep(&frame->extended_buf);
+    av_spl_freep(&frame->extended_buf);
     av_dict_free(&frame->metadata);
 
     av_buffer_unref(&frame->hw_frames_ctx);
@@ -513,7 +522,7 @@ void av_frame_unref(AVFrame *frame)
     av_refstruct_unref(&frame->private_ref);
 
     if (frame->extended_data != frame->data)
-        av_freep(&frame->extended_data);
+        av_spl_freep(&frame->extended_data);
 
     av_channel_layout_uninit(&frame->ch_layout);
 
