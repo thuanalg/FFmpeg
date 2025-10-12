@@ -48,7 +48,8 @@
 
 #define STREAM_DURATION   10.0
 #define STREAM_FRAME_RATE 25 /* 25 images/s */
-#define STREAM_PIX_FMT    AV_PIX_FMT_YUV420P /* default pix_fmt */
+#define STREAM_PIX_FMT    AV_PIX_FMT_YUV422P /* default pix_fmt AV_PIX_FMT_YUV422P */
+//#define STREAM_PIX_FMT    AV_PIX_FMT_YUV420P /* default pix_fmt AV_PIX_FMT_YUV422P */
 
 #define SCALE_FLAGS SWS_BICUBIC
 /*+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+*/
@@ -67,6 +68,7 @@ typedef struct __FFWR_INSTREAM__ {
 FFWR_INSTREAM gb_instream;
 int ffwr_open_input(FFWR_INSTREAM *pinput);
 int ffwr_close_input(FFWR_INSTREAM *pinput);
+int convert_frame(AVFrame *src, AVFrame *dst);
 int ffwr_close_input(FFWR_INSTREAM *pinput)
 {
     int ret = 0;
@@ -83,7 +85,7 @@ int ffwr_close_input(FFWR_INSTREAM *pinput)
     } while(0);
     return ret;
 }
-int convert_frame(AVFrame *src, AVFrame *dst);
+
 int ffwr_open_input(FFWR_INSTREAM *pinput) {
     int ret = 0;
     int result = 0;
@@ -167,24 +169,16 @@ int ffwr_open_input(FFWR_INSTREAM *pinput) {
 int
 convert_frame(AVFrame *src, AVFrame *dst)
 {
-
     int ret = 0;
-
-
-
-    //AVFrame *src = av_frame_alloc();
-    //src->format = src_fmt;
-    //src->width  = src_w;
-    //src->height = src_h;
-    av_frame_get_buffer(src, 32);
-
-    // TODO: copy hoặc điền dữ liệu thật vào src->data[0]
-
-    //dst->format = dst_fmt;
-    //dst->width  = dst_w;
-    //dst->height = dst_h;
+    //av_frame_get_buffer(src, 32);
     av_frame_get_buffer(dst, 32);
-
+    if (!dst->data[0]) {
+        ret = av_frame_get_buffer(dst, 32);
+        if (ret < 0) {
+            spllog(4, "Error allocating dst buffer\n");
+            return ret;
+        }
+    }
     struct SwsContext *sws_ctx = sws_getContext(
 		src->width, 
 		src->height, 
@@ -195,7 +189,7 @@ convert_frame(AVFrame *src, AVFrame *dst)
         SWS_BILINEAR, NULL, NULL, NULL
     );
     if (!sws_ctx) {
-        fprintf(stderr, "Error: cannot create sws context\n");
+        spllog(4, "Error: cannot create sws context\n");
         return -1;
     }
 
@@ -209,11 +203,7 @@ convert_frame(AVFrame *src, AVFrame *dst)
         dst->linesize
     );
 
-
-
     sws_freeContext(sws_ctx);
-    //av_frame_free(&src);
-    //av_frame_free(&dst);
     return 0;
 }
 /*+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+*/
@@ -350,11 +340,11 @@ static void add_stream(OutputStream *ost, AVFormatContext *oc,
 
     case AVMEDIA_TYPE_VIDEO:
         c->codec_id = codec_id;
-
+        //c->pix_fmt = 4;
         c->bit_rate = 400000;
         /* Resolution must be a multiple of two. */
-        c->width    = 352;
-        c->height   = 288;
+        c->width    = 640;
+        c->height   = 480;
         /* timebase: This is the fundamental unit of time (in seconds) in terms
          * of which frame timestamps are represented. For fixed-fps content,
          * timebase should be 1/framerate and timestamp increments should be
@@ -604,8 +594,8 @@ static void open_video(AVFormatContext *oc, const AVCodec *codec,
      * picture is needed too. It is then converted to the required
      * output format. */
     ost->tmp_frame = NULL;
-    if (c->pix_fmt != AV_PIX_FMT_YUV420P) {
-        ost->tmp_frame = alloc_frame(AV_PIX_FMT_YUV420P, c->width, c->height);
+    if (c->pix_fmt != STREAM_PIX_FMT) {
+        ost->tmp_frame = alloc_frame(STREAM_PIX_FMT, c->width, c->height);
         if (!ost->tmp_frame) {
             fprintf(stderr, "Could not allocate temporary video frame\n");
             exit(1);
@@ -643,7 +633,7 @@ static void fill_yuv_image(void *sourceInput, AVFrame *pict, int frame_index,
     }
 #else
     int result = 0;
-    spllog(1, "frame_index: %d", frame_index);
+    //spllog(1, "frame_index: %d", frame_index);
     do {
         if(!gb_instream.vframe) {
             gb_instream.vframe = av_frame_alloc();
@@ -665,6 +655,7 @@ static void fill_yuv_image(void *sourceInput, AVFrame *pict, int frame_index,
 		if (result < 0) {
 			break;
 		}
+        spl_vframe(gb_instream.vframe);
         //pict->format = 4;
         convert_frame(gb_instream.vframe, pict);
         spl_vframe(pict);
@@ -688,12 +679,12 @@ static AVFrame *get_video_frame(OutputStream *ost)
     if (av_frame_make_writable(ost->frame) < 0)
         exit(1);
 
-    if (c->pix_fmt != AV_PIX_FMT_YUV420P) {
+    if (c->pix_fmt != STREAM_PIX_FMT) {
         /* as we only generate a YUV420P picture, we must convert it
          * to the codec pixel format if needed */
         if (!ost->sws_ctx) {
             ost->sws_ctx = sws_getContext(c->width, c->height,
-                                          AV_PIX_FMT_YUV420P,
+                                          STREAM_PIX_FMT,
                                           c->width, c->height,
                                           c->pix_fmt,
                                           SCALE_FLAGS, NULL, NULL, NULL);
