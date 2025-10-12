@@ -59,71 +59,162 @@ typedef struct __FFWR_INSTREAM__ {
     AVCodec *v_codec;
     AVCodecContext *v_cctx;
     AVPacket pkt;
+    AVFrame *vframe;
     
 
     AVStream *ast;
 } FFWR_INSTREAM;
 FFWR_INSTREAM gb_instream;
 int ffwr_open_input(FFWR_INSTREAM *pinput);
+int ffwr_close_input(FFWR_INSTREAM *pinput);
+int ffwr_close_input(FFWR_INSTREAM *pinput)
+{
+    int ret = 0;
+    do {
+        if(pinput->vframe) {
+            av_frame_free(&(pinput->vframe));
+        }
+        if(pinput->v_cctx) {
+            avcodec_free_context(&(pinput->v_cctx));
+        }
+        if(pinput->fmt_ctx) {
+            avformat_free_context(pinput->fmt_ctx);
+        }
+    } while(0);
+    return ret;
+}
+int convert_frame(AVFrame *src, AVFrame *dst);
 int ffwr_open_input(FFWR_INSTREAM *pinput) {
     int ret = 0;
     int result = 0;
     AVInputFormat *iformat = 0; 
     avdevice_register_all();
+    AVDictionary *options = 0;
     do {
         if(!pinput) {
             ret = 1;
+            spllog(4, "--");
             break;
         }
         iformat = av_find_input_format("dshow");
         if(!iformat) {
             ret = 1;
+            spllog(4, "--");
             break;
         }
+
+		av_dict_set(&options, "rtbufsize", "100M", 0);        
         result = avformat_open_input(&(pinput->fmt_ctx), 
-            "video=Integrated Webcam", iformat, 0);
+            "video=Integrated Webcam", iformat, &options);
 
         if(result < 0) {
             ret = 1;
+            spllog(4, "--");
             break;
         }
         result = avformat_find_stream_info(pinput->fmt_ctx, 0);
         if(result < 0) {
             ret = 1;
+            spllog(4, "--");
             break;
         }
         if(pinput->fmt_ctx->nb_streams < 1) {
             ret = 1;
+            spllog(4, "--");
             break;
         }
         pinput->v_st = pinput->fmt_ctx->streams[0];
         if(!pinput->v_st) {
             ret = 1;
+            spllog(4, "--");
             break;
         }
         pinput->v_codec = avcodec_find_decoder(AV_CODEC_ID_RAWVIDEO);
         if(!pinput->v_codec) {
             ret = 1;
+            spllog(4, "--");
             break;
         }        
         pinput->v_cctx  = avcodec_alloc_context3(pinput->v_codec);
         if(!pinput->v_cctx) {
             ret = 1;
+            spllog(4, "--");
             break;
         }    
 #if 1        
         result = avcodec_parameters_to_context(pinput->v_cctx, pinput->v_st->codecpar);
         if(result < 0) {
             ret = 1;
+            spllog(4, "--");
             break;
         }
 		result = avcodec_open2(pinput->v_cctx, pinput->v_codec, 0);
 		if (result < 0) {
+            spllog(4, "--");
 			break;
 		}        
-#endif        
+#endif      
+        pinput->vframe = av_frame_alloc(); 
+        if(!pinput->vframe) {
+            ret = 1;
+            spllog(4, "--");
+            break;
+        }
     } while(0);
     return ret;
+}
+/*+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+*/
+int
+convert_frame(AVFrame *src, AVFrame *dst)
+{
+
+    int ret = 0;
+
+
+
+    //AVFrame *src = av_frame_alloc();
+    //src->format = src_fmt;
+    //src->width  = src_w;
+    //src->height = src_h;
+    av_frame_get_buffer(src, 32);
+
+    // TODO: copy hoặc điền dữ liệu thật vào src->data[0]
+
+    //dst->format = dst_fmt;
+    //dst->width  = dst_w;
+    //dst->height = dst_h;
+    av_frame_get_buffer(dst, 32);
+
+    struct SwsContext *sws_ctx = sws_getContext(
+		src->width, 
+		src->height, 
+		src->format, 
+		dst->width, 
+		dst->height, 
+		dst->format,
+        SWS_BILINEAR, NULL, NULL, NULL
+    );
+    if (!sws_ctx) {
+        fprintf(stderr, "Error: cannot create sws context\n");
+        return -1;
+    }
+
+    ret = sws_scale(
+        sws_ctx,
+        (const uint8_t * const *)src->data,
+        src->linesize,
+        0,
+        src->height,
+        dst->data,
+        dst->linesize
+    );
+
+
+
+    sws_freeContext(sws_ctx);
+    //av_frame_free(&src);
+    //av_frame_free(&dst);
+    return 0;
 }
 /*+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+*/
 
@@ -165,6 +256,11 @@ static int write_frame(AVFormatContext *fmt_ctx, AVCodecContext *c,
 
     // send the frame to the encoder
     ret = avcodec_send_frame(c, frame);
+    if(frame) {
+        if(frame->width) {
+            spllog(1, "---");
+        }
+    }
     if (ret < 0) {
         spllog(4, "Error sending a frame to the encoder: %s\n",
                 av_err2str(ret));
@@ -528,7 +624,7 @@ static void open_video(AVFormatContext *oc, const AVCodec *codec,
 static void fill_yuv_image(void *sourceInput, AVFrame *pict, int frame_index,
                            int width, int height)
 {
-#if 0    
+#if 0  
     int x, y, i;
 
     i = frame_index;
@@ -547,7 +643,15 @@ static void fill_yuv_image(void *sourceInput, AVFrame *pict, int frame_index,
     }
 #else
     int result = 0;
+    spllog(1, "frame_index: %d", frame_index);
     do {
+        if(!gb_instream.vframe) {
+            gb_instream.vframe = av_frame_alloc();
+        }
+        if(!gb_instream.vframe) {
+            break;
+        }
+        av_frame_unref(gb_instream.vframe);
         result = av_read_frame(gb_instream.fmt_ctx, &(gb_instream.pkt));     
         if(result < 0) {
             break;
@@ -557,14 +661,22 @@ static void fill_yuv_image(void *sourceInput, AVFrame *pict, int frame_index,
             spllog(1, "v_cctx: 0x%p", gb_instream.v_cctx);
             break;
         }
-
+		result = avcodec_receive_frame(gb_instream.v_cctx, gb_instream.vframe);
+		if (result < 0) {
+			break;
+		}
+        //pict->format = 4;
+        convert_frame(gb_instream.vframe, pict);
+        spl_vframe(pict);
     } while(0);
+    av_packet_unref(&(gb_instream.pkt));
 #endif    
 }
 
 static AVFrame *get_video_frame(OutputStream *ost)
 {
     AVCodecContext *c = ost->enc;
+    int ret = 0;
 
     /* check if we want to generate more frames */
     if (av_compare_ts(ost->next_pts, c->time_base,
@@ -592,11 +704,18 @@ static AVFrame *get_video_frame(OutputStream *ost)
             }
         }
         fill_yuv_image(0, ost->tmp_frame, ost->next_pts, c->width, c->height);
-        sws_scale(ost->sws_ctx, (const uint8_t * const *) ost->tmp_frame->data,
+        ret = sws_scale(ost->sws_ctx, (const uint8_t * const *) ost->tmp_frame->data,
                   ost->tmp_frame->linesize, 0, c->height, ost->frame->data,
                   ost->frame->linesize);
+        if(ret < 0) {
+            spllog(1, "sws_scale, ret: %d", ret);
+        }
     } else {
+#if 1        
         fill_yuv_image(0, ost->frame, ost->next_pts, c->width, c->height);
+#else        
+        fill_yuv_image(0, ost->frame, ost->next_pts, c->width, c->height);
+#endif        
     }
 
     ost->frame->pts = ost->next_pts++;
@@ -645,6 +764,7 @@ int main(int argc, char **argv)
 	snprintf(input.folder, SPL_PATH_FOLDER, "%s", cfgpath);
 	snprintf(input.id_name, 100, "mux");
 	ret = spl_init_log_ext(&input);
+
     ffwr_open_input(&gb_instream);
 
     if (argc < 2) {
@@ -684,8 +804,10 @@ int main(int argc, char **argv)
     }
     if (fmt->audio_codec != AV_CODEC_ID_NONE) {
         add_stream(&audio_st, oc, &audio_codec, fmt->audio_codec);
+#if 1        
         have_audio = 1;
         encode_audio = 1;
+#endif        
     }
 
     /* Now that all the parameters are set, we can open the audio and
@@ -744,6 +866,7 @@ int main(int argc, char **argv)
 
     /* free the stream */
     avformat_free_context(oc);
+    ffwr_close_input(&gb_instream);
     spl_finish_log();
     return 0;
 }
