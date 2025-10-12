@@ -101,7 +101,6 @@ int ffwr_open_input(FFWR_INSTREAM *pinput) {
             ret = 1;
             break;
         }
-#if 1        
         pinput->v_codec = avcodec_find_decoder(AV_CODEC_ID_RAWVIDEO);
         if(!pinput->v_codec) {
             ret = 1;
@@ -112,8 +111,17 @@ int ffwr_open_input(FFWR_INSTREAM *pinput) {
             ret = 1;
             break;
         }    
-        
-#endif            
+#if 1        
+        result = avcodec_parameters_to_context(pinput->v_cctx, pinput->v_st->codecpar);
+        if(result < 0) {
+            ret = 1;
+            break;
+        }
+		result = avcodec_open2(pinput->v_cctx, pinput->v_codec, 0);
+		if (result < 0) {
+			break;
+		}        
+#endif        
     } while(0);
     return ret;
 }
