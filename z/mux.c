@@ -46,7 +46,7 @@
 #include <libavdevice/avdevice.h>
 #include <libavformat/avformat.h>
 
-#define STREAM_DURATION   10.0
+#define STREAM_DURATION   20.0
 #define STREAM_FRAME_RATE 25 /* 25 images/s */
 #define STREAM_PIX_FMT    AV_PIX_FMT_YUV422P /* default pix_fmt AV_PIX_FMT_YUV422P */
 //#define STREAM_PIX_FMT    AV_PIX_FMT_YUV420P /* default pix_fmt AV_PIX_FMT_YUV422P */
@@ -61,6 +61,7 @@ typedef struct __FFWR_INSTREAM__ {
     AVCodecContext *v_cctx;
     AVPacket pkt;
     AVFrame *vframe;
+    SwsContext *vscale;
     
 
     AVStream *ast;
@@ -82,6 +83,9 @@ int ffwr_close_input(FFWR_INSTREAM *pinput)
         if(pinput->fmt_ctx) {
             avformat_free_context(pinput->fmt_ctx);
         }
+        if(pinput->vscale) {
+            sws_freeContext(pinput->vscale);
+        }          
     } while(0);
     return ret;
 }
@@ -178,23 +182,26 @@ convert_frame(AVFrame *src, AVFrame *dst)
             spllog(4, "Error allocating dst buffer\n");
             return ret;
         }
+        spllog(1, "av_frame_get_buffer");
     }
-    struct SwsContext *sws_ctx = sws_getContext(
-		src->width, 
-		src->height, 
-		src->format, 
-		dst->width, 
-		dst->height, 
-		dst->format,
-        SWS_BILINEAR, NULL, NULL, NULL
-    );
-    if (!sws_ctx) {
+    if(! (gb_instream.vscale)) {
+        gb_instream.vscale = sws_getContext(
+	    	src->width, 
+	    	src->height, 
+	    	src->format, 
+	    	dst->width, 
+	    	dst->height, 
+	    	dst->format,
+            SWS_BILINEAR, NULL, NULL, NULL
+        );
+    }
+    if (!gb_instream.vscale) {
         spllog(4, "Error: cannot create sws context\n");
         return -1;
     }
 
     ret = sws_scale(
-        sws_ctx,
+        gb_instream.vscale,
         (const uint8_t * const *)src->data,
         src->linesize,
         0,
@@ -203,7 +210,6 @@ convert_frame(AVFrame *src, AVFrame *dst)
         dst->linesize
     );
 
-    sws_freeContext(sws_ctx);
     return 0;
 }
 /*+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+*/
@@ -249,6 +255,9 @@ static int write_frame(AVFormatContext *fmt_ctx, AVCodecContext *c,
     if(frame) {
         if(frame->width) {
             spllog(1, "---");
+#if 0            
+            av_frame_unref(frame);
+#endif            
         }
     }
     if (ret < 0) {
@@ -281,6 +290,7 @@ static int write_frame(AVFormatContext *fmt_ctx, AVCodecContext *c,
             spllog(4, "Error while writing output packet: %s\n", av_err2str(ret));
             exit(1);
         }
+        av_packet_unref(pkt);
     }
 
     return ret == AVERROR_EOF ? 1 : 0;
@@ -635,10 +645,10 @@ static void fill_yuv_image(void *sourceInput, AVFrame *pict, int frame_index,
     int result = 0;
     //spllog(1, "frame_index: %d", frame_index);
     do {
-        if(!gb_instream.vframe) {
+        if(!(gb_instream.vframe)) {
             gb_instream.vframe = av_frame_alloc();
         }
-        if(!gb_instream.vframe) {
+        if(!(gb_instream.vframe)) {
             break;
         }
         av_frame_unref(gb_instream.vframe);
