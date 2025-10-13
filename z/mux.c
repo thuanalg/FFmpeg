@@ -45,13 +45,16 @@
 #include <simplelog.h>
 #include <libavdevice/avdevice.h>
 #include <libavformat/avformat.h>
-
+#define NUMBER_FRAMES           600
 #define STREAM_DURATION   10.0
 #define STREAM_FRAME_RATE 25 /* 25 images/s */
 #define STREAM_PIX_FMT    AV_PIX_FMT_YUV422P /* default pix_fmt AV_PIX_FMT_YUV422P */
 //#define STREAM_PIX_FMT    AV_PIX_FMT_YUV420P /* default pix_fmt AV_PIX_FMT_YUV422P */
 
 #define SCALE_FLAGS SWS_BICUBIC
+/*+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+*/
+int count_frame = 0;
+int count_frame_audio = 0;
 /*+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+*/
 
 // a wrapper around a single output AVStream
@@ -151,7 +154,7 @@ int ffwr_open_input(FFWR_INSTREAM *pinput, char *name, int mode) {
             spllog(4, "--");
             break;
         }
-        if(mode == 0) {
+        if(mode == 0 || 1) {
             result = avformat_find_stream_info(pinput->fmt_ctx, 0);
             if(result < 0) {
                 ret = 1;
@@ -201,7 +204,7 @@ int ffwr_open_input(FFWR_INSTREAM *pinput, char *name, int mode) {
             break;
         }
         /*------------------------------*/
-        if(mode == 1) {
+        if(mode == 1 || 1) {
             if(pinput->fmt_ctx->nb_streams > 0) {
                 pinput->a_st = pinput->fmt_ctx->streams[0];
             }
@@ -557,13 +560,17 @@ static AVFrame *get_audio_frame_trigger(OutputStream *ost) {
     //    return 0;
 	//}
     do {
+        spllog(1, "count_frame: %d", count_frame);
+        if(count_frame > NUMBER_FRAMES) {
+            break;
+        }
         return 0;
         result = av_read_frame(p->fmt_ctx, &(p->a_pkt));
         if(result < 0) {
             spllog(4, "---");
             break;
         }
-        return 0;
+        
         result = avcodec_send_packet(p->a_cctx, &(p->a_pkt));
         if(result < 0) {
             spllog(4, "---");
@@ -594,8 +601,12 @@ static AVFrame *get_audio_frame(OutputStream *ost)
     int16_t *q = (int16_t*)frame->data[0];
 
     /* check if we want to generate more frames */
+#if 0    
     result = (av_compare_ts(ost->next_pts, ost->enc->time_base,
                       STREAM_DURATION, (AVRational){ 1, 1 }) > 0);
+#else
+    result = (count_frame > NUMBER_FRAMES);
+#endif                      
     if (result)
         return NULL;
 
@@ -610,7 +621,7 @@ static AVFrame *get_audio_frame(OutputStream *ost)
     frame->pts = ost->next_pts;
     ost->next_pts  += frame->nb_samples;
     spl_vframe(frame); 
-    get_audio_frame_trigger(ost);
+    //get_audio_frame_trigger(ost);
     return frame;
 #else
     return get_audio_frame_trigger(ost);
@@ -792,6 +803,11 @@ static void fill_yuv_image(void *sourceInput, AVFrame *pict, int frame_index,
         if(result < 0) {
             break;
         }
+        if(gb_instream.pkt.stream_index) {
+            spllog(1, "For audio, stream_index: %d, count_frame_audio: %d", 
+                gb_instream.pkt.stream_index, (++count_frame_audio));
+            break;
+        }
         result = avcodec_send_packet(gb_instream.v_cctx, &(gb_instream.pkt));
         if(result < 0) {
             spllog(1, "v_cctx: 0x%p", gb_instream.v_cctx);
@@ -804,6 +820,7 @@ static void fill_yuv_image(void *sourceInput, AVFrame *pict, int frame_index,
         spl_vframe(gb_instream.vframe);
         //pict->format = 4;
         convert_frame(gb_instream.vframe, pict);
+        count_frame++;
         spl_vframe(pict);
     } while(0);
     av_packet_unref(&(gb_instream.pkt));
@@ -814,10 +831,16 @@ static AVFrame *get_video_frame(OutputStream *ost)
 {
     AVCodecContext *c = ost->enc;
     int ret = 0;
+    int result = 0;
 
     /* check if we want to generate more frames */
-    if (av_compare_ts(ost->next_pts, c->time_base,
-                      STREAM_DURATION, (AVRational){ 1, 1 }) > 0)
+#if 0    
+    result = (av_compare_ts(ost->next_pts, c->time_base,
+                      STREAM_DURATION, (AVRational){ 1, 1 }) > 0);
+#else
+    result = (count_frame > NUMBER_FRAMES);
+#endif                      
+    if (result)
         return NULL;
 
     /* when we pass a frame to the encoder, it may keep a reference to it
@@ -902,8 +925,8 @@ int main(int argc, char **argv)
 	snprintf(input.id_name, 100, "mux");
 	ret = spl_init_log_ext(&input);
 
-    ffwr_open_input(&gb_instream, "video=Integrated Webcam", 0);
-    ffwr_open_input(&gb_instream_audio, "audio=Microphone (2- Realtek(R) Audio)", 1);
+    ffwr_open_input(&gb_instream, "video=Integrated Webcam:audio=Microphone (2- Realtek(R) Audio)", 0);
+    //ffwr_open_input(&gb_instream_audio, "audio=Microphone (2- Realtek(R) Audio)", 1);
 
     if (argc < 2) {
         printf("usage: %s output_file\n"
@@ -978,6 +1001,9 @@ int main(int argc, char **argv)
 
     while (encode_video || encode_audio) {
         /* select the stream to encode */
+        if(count_frame > NUMBER_FRAMES) {
+            break;
+        }
         if (encode_video &&
             (!encode_audio || av_compare_ts(video_st.next_pts, video_st.enc->time_base,
                                             audio_st.next_pts, audio_st.enc->time_base) <= 0)) 
