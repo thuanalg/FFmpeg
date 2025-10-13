@@ -46,13 +46,34 @@
 #include <libavdevice/avdevice.h>
 #include <libavformat/avformat.h>
 
-#define STREAM_DURATION   20.0
+#define STREAM_DURATION   10.0
 #define STREAM_FRAME_RATE 25 /* 25 images/s */
 #define STREAM_PIX_FMT    AV_PIX_FMT_YUV422P /* default pix_fmt AV_PIX_FMT_YUV422P */
 //#define STREAM_PIX_FMT    AV_PIX_FMT_YUV420P /* default pix_fmt AV_PIX_FMT_YUV422P */
 
 #define SCALE_FLAGS SWS_BICUBIC
 /*+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+*/
+
+// a wrapper around a single output AVStream
+typedef struct OutputStream {
+    AVStream *st;
+    AVCodecContext *enc;
+
+    /* pts of the next frame that will be generated */
+    int64_t next_pts;
+    int samples_count;
+
+    AVFrame *frame;
+    AVFrame *a_frame;
+    AVFrame *tmp_frame;
+
+    AVPacket *tmp_pkt;
+
+    float t, tincr, tincr2;
+
+    struct SwsContext *sws_ctx;
+    struct SwrContext *swr_ctx;
+} OutputStream;
 
 typedef struct __FFWR_INSTREAM__ {
     AVFormatContext *fmt_ctx;
@@ -274,26 +295,8 @@ convert_frame(AVFrame *src, AVFrame *dst)
 }
 /*+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+*/
 
-// a wrapper around a single output AVStream
-typedef struct OutputStream {
-    AVStream *st;
-    AVCodecContext *enc;
-
-    /* pts of the next frame that will be generated */
-    int64_t next_pts;
-    int samples_count;
-
-    AVFrame *frame;
-    AVFrame *a_frame;
-    AVFrame *tmp_frame;
-
-    AVPacket *tmp_pkt;
-
-    float t, tincr, tincr2;
-
-    struct SwsContext *sws_ctx;
-    struct SwrContext *swr_ctx;
-} OutputStream;
+int
+convert_audio_frame(OutputStream *ost, AVFrame *src, AVFrame *dst);
 
 static void log_packet(const AVFormatContext *fmt_ctx, const AVPacket *pkt)
 {
@@ -313,6 +316,7 @@ static int write_frame(AVFormatContext *fmt_ctx, AVCodecContext *c,
 
     // send the frame to the encoder
     ret = avcodec_send_frame(c, frame);
+
     if(frame) {
         if(frame->width) {
             spllog(1, "---");
@@ -321,6 +325,7 @@ static int write_frame(AVFormatContext *fmt_ctx, AVCodecContext *c,
 #endif            
         }
     }
+
     if (ret < 0) {
         spllog(4, "Error sending a frame to the encoder: %s\n",
                 av_err2str(ret));
@@ -405,7 +410,9 @@ static void add_stream(OutputStream *ost, AVFormatContext *oc,
                     c->sample_rate = 44100;
             }
         }
+
         av_channel_layout_copy(&c->ch_layout, &(AVChannelLayout)AV_CHANNEL_LAYOUT_STEREO);
+
         ost->st->time_base = (AVRational){ 1, c->sample_rate };
         break;
 
@@ -541,49 +548,55 @@ static void open_audio(AVFormatContext *oc, const AVCodec *codec,
 /* Prepare a 16 bit dummy audio frame of 'frame_size' samples and
  * 'nb_channels' channels. */
 static AVFrame *get_audio_frame_trigger(OutputStream *ost) {
+    FFWR_INSTREAM *p = &gb_instream_audio;
     //AVFrame *frame = ost->tmp_frame;
-    //int j, i, v;
-    //int16_t *q = (int16_t*)frame->data[0];
     int result = 0;
         /* check if we want to generate more frames */
-    if (av_compare_ts(ost->next_pts, ost->enc->time_base,
-                      STREAM_DURATION, (AVRational){ 1, 1 }) > 0) {
-        return 0;
-	}
+    //if (av_compare_ts(ost->next_pts, ost->enc->time_base,
+    //                  STREAM_DURATION, (AVRational){ 1, 1 }) > 0) {
+    //    return 0;
+	//}
     do {
-       
-        result = av_read_frame(gb_instream.fmt_ctx, &(gb_instream.a_pkt));
+        return 0;
+        result = av_read_frame(p->fmt_ctx, &(p->a_pkt));
         if(result < 0) {
             spllog(4, "---");
             break;
         }
-        result = avcodec_send_packet(gb_instream.a_cctx, &(gb_instream.a_pkt));
+        return 0;
+        result = avcodec_send_packet(p->a_cctx, &(p->a_pkt));
         if(result < 0) {
             spllog(4, "---");
             break;
         }   
-        result = avcodec_receive_frame(gb_instream.a_cctx, gb_instream.a_frame);     
+        result = avcodec_receive_frame(p->a_cctx, p->a_frame);     
         if(result < 0) {
             spllog(4, "---");
             break;
         }   
-        spl_vframe(gb_instream.a_frame); 
+        spl_vframe(p->a_frame); 
+        //convert_audio_frame(ost, p->a_frame, p->a_dstframe);
+        //p->a_frame->pts = ost->next_pts;
+        //ost->next_pts  += p->a_frame->nb_samples;  
+
         //frame->pts = ost->next_pts;
         //ost->next_pts  += frame->nb_samples;               
     } while(0);
-    //spl_vframe(frame);
-    return gb_instream.a_dstframe;    
+
+    return p->a_dstframe;    
 }
 static AVFrame *get_audio_frame(OutputStream *ost)
 {
+    int result = 0;
 #if 1    
     AVFrame *frame = ost->tmp_frame;
     int j, i, v;
     int16_t *q = (int16_t*)frame->data[0];
 
     /* check if we want to generate more frames */
-    if (av_compare_ts(ost->next_pts, ost->enc->time_base,
-                      STREAM_DURATION, (AVRational){ 1, 1 }) > 0)
+    result = (av_compare_ts(ost->next_pts, ost->enc->time_base,
+                      STREAM_DURATION, (AVRational){ 1, 1 }) > 0);
+    if (result)
         return NULL;
 
     for (j = 0; j <frame->nb_samples; j++) {
@@ -596,39 +609,11 @@ static AVFrame *get_audio_frame(OutputStream *ost)
 
     frame->pts = ost->next_pts;
     ost->next_pts  += frame->nb_samples;
-    spl_vframe(frame);
+    spl_vframe(frame); 
+    get_audio_frame_trigger(ost);
     return frame;
 #else
-    AVFrame *frame = ost->tmp_frame;
-    int j, i, v;
-    int16_t *q = (int16_t*)frame->data[0];
-    int result = 0;
-        /* check if we want to generate more frames */
-    if (av_compare_ts(ost->next_pts, ost->enc->time_base,
-                      STREAM_DURATION, (AVRational){ 1, 1 }) > 0) {
-        return 0;
-	}
-    do {
-        result = av_read_frame(gb_instream.fmt_ctx, &(gb_instream.a_pkt));
-        if(result < 0) {
-            spllog(1, "---");
-            break;
-        }
-        result = avcodec_send_packet(gb_instream.a_cctx, &(gb_instream.a_pkt));
-        if(result < 0) {
-            spllog(1, "---");
-            break;
-        }   
-        result = avcodec_receive_frame(gb_instream.a_cctx, frame);     
-        if(result < 0) {
-            spllog(1, "---");
-            break;
-        }    
-        frame->pts = ost->next_pts;
-        ost->next_pts  += frame->nb_samples;               
-    } while(0);
-    spl_vframe(frame);
-    return frame;
+    return get_audio_frame_trigger(ost);
 #endif    
 }
 
@@ -662,9 +647,7 @@ static int write_audio_frame(AVFormatContext *oc, OutputStream *ost)
             exit(1);
 #if 1
         /* convert to destination format */
-        ret = swr_convert(ost->swr_ctx,
-                          ost->frame->data, dst_nb_samples,
-                          (const uint8_t **)frame->data, frame->nb_samples);
+        ret = swr_convert(ost->swr_ctx, ost->frame->data, dst_nb_samples, (const uint8_t **)frame->data, frame->nb_samples);
 
         if (ret < 0) {
             spllog(1, "Error while converting\n");
@@ -694,8 +677,7 @@ static int write_audio_frame(AVFormatContext *oc, OutputStream *ost)
             exit(1);
         }
 
-        frame = ost->a_frame;
- 
+        frame = ost->a_frame; 
         frame->pts = av_rescale_q(ost->samples_count, (AVRational){1, c->sample_rate}, c->time_base);
         ost->samples_count += dst_nb_samples;
 #endif
@@ -921,6 +903,7 @@ int main(int argc, char **argv)
 	ret = spl_init_log_ext(&input);
 
     ffwr_open_input(&gb_instream, "video=Integrated Webcam", 0);
+    ffwr_open_input(&gb_instream_audio, "audio=Microphone (2- Realtek(R) Audio)", 1);
 
     if (argc < 2) {
         printf("usage: %s output_file\n"
@@ -1026,4 +1009,35 @@ int main(int argc, char **argv)
     return 0;
 }
 /*+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+*/
+int
+convert_audio_frame(OutputStream *ost, AVFrame *src, AVFrame *dst)
+{
+    int ret = 0;
+    dst->nb_samples = src->nb_samples;
+    dst->format = 8;
+    dst->sample_rate = src->sample_rate;
+    av_channel_layout_copy(&(dst->ch_layout), &(ost->enc->ch_layout));
+
+    ret = av_frame_get_buffer(dst, 0);
+	if ((ret) < 0) {
+		spllog(4, "Error: cannot allocate dst buffer (%d)\n", ret);
+		return ret;
+	}
+
+	ret = swr_convert(ost->swr_ctx, dst->data, dst->nb_samples,
+	    (const uint8_t **)src->data, src->nb_samples);
+
+	if (ret < 0) {
+		spllog(4, " Error: swr_convert failed (%d)\n", ret);
+		return ret;
+	}
+
+	dst->nb_samples = ret;
+
+
+	spllog(1, "Audio convert done: %d samples -> %d samples\n",
+	    src->nb_samples, dst->nb_samples);
+
+	return ret;
+}
 /*+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+*/
