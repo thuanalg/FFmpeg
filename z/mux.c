@@ -56,6 +56,7 @@
 
 typedef struct __FFWR_INSTREAM__ {
     AVFormatContext *fmt_ctx;
+
     AVStream *v_st;
     AVCodec *v_codec;
     AVCodecContext *v_cctx;
@@ -64,8 +65,15 @@ typedef struct __FFWR_INSTREAM__ {
     SwsContext *vscale;
     
 
-    AVStream *ast;
+    AVStream *a_st;
+    AVCodec *a_codec;
+    AVCodecContext *a_cctx;
+    AVPacket a_pkt;
+    AVFrame *a_frame;
+    SwsContext *a_scale;    
+
 } FFWR_INSTREAM;
+
 FFWR_INSTREAM gb_instream;
 int ffwr_open_input(FFWR_INSTREAM *pinput);
 int ffwr_close_input(FFWR_INSTREAM *pinput);
@@ -111,7 +119,8 @@ int ffwr_open_input(FFWR_INSTREAM *pinput) {
 
 		av_dict_set(&options, "rtbufsize", "50M", 0);        
         result = avformat_open_input(&(pinput->fmt_ctx), 
-            "video=Integrated Webcam", iformat, &options);
+            "video=Integrated Webcam:audio=Microphone (2- Realtek(R) Audio)", 
+            iformat, &options);
 
         if(result < 0) {
             ret = 1;
@@ -147,7 +156,6 @@ int ffwr_open_input(FFWR_INSTREAM *pinput) {
             spllog(4, "--");
             break;
         }    
-#if 1        
         result = avcodec_parameters_to_context(pinput->v_cctx, pinput->v_st->codecpar);
         if(result < 0) {
             ret = 1;
@@ -159,13 +167,44 @@ int ffwr_open_input(FFWR_INSTREAM *pinput) {
             spllog(4, "--");
 			break;
 		}        
-#endif      
         pinput->vframe = av_frame_alloc(); 
         if(!pinput->vframe) {
             ret = 1;
             spllog(4, "--");
             break;
         }
+        /*------------------------------*/
+        if(pinput->fmt_ctx->nb_programs > 1) {
+            pinput->a_st = pinput->fmt_ctx->streams[1];
+        }
+        if(!pinput->a_st) {
+            ret = 1;
+            spllog(1, "---");
+            break;
+        }
+        pinput->a_codec = avcodec_find_decoder(AV_CODEC_ID_PCM_S16LE);
+        if(!pinput->a_codec) {
+            ret = 1;
+            spllog(4, "--");
+            break;
+        }      
+        pinput->a_cctx  = avcodec_alloc_context3(pinput->a_codec);
+        if(!pinput->a_cctx) {
+            ret = 1;
+            spllog(4, "--a_cctx");
+            break;
+        }   
+        result = avcodec_parameters_to_context(pinput->a_cctx, pinput->a_st->codecpar);
+        if(result < 0) {
+            ret = 1;
+            spllog(4, "--");
+            break;
+        }   
+		result = avcodec_open2(pinput->a_cctx, pinput->a_codec, 0);
+		if (result < 0) {
+            spllog(4, "--");
+			break;
+		}                         
     } while(0);
     return ret;
 }
