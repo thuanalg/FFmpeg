@@ -50,7 +50,7 @@
 #define STREAM_FRAME_RATE 25 /* 25 images/s */
 #define STREAM_PIX_FMT    AV_PIX_FMT_YUV422P /* default pix_fmt AV_PIX_FMT_YUV422P */
 //#define STREAM_PIX_FMT    AV_PIX_FMT_YUV420P /* default pix_fmt AV_PIX_FMT_YUV422P */
-#define NUMBER_FRAMES           (STREAM_FRAME_RATE * 60)
+#define NUMBER_FRAMES           (STREAM_FRAME_RATE * 10)
 #define SCALE_FLAGS SWS_BICUBIC
 /*+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+*/
 int count_frame = 0;
@@ -679,7 +679,7 @@ static int write_audio_frame(AVFormatContext *oc, OutputStream *ost)
         ost->samples_count += dst_nb_samples;
 #endif
     }
-
+    spl_vframe(frame);
     return write_frame(oc, c, ost->st, frame, ost->tmp_pkt);
 }
 
