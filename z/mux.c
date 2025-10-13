@@ -76,7 +76,9 @@ typedef struct __FFWR_INSTREAM__ {
 } FFWR_INSTREAM;
 
 FFWR_INSTREAM gb_instream;
-int ffwr_open_input(FFWR_INSTREAM *pinput);
+FFWR_INSTREAM gb_instream_audio;
+
+int ffwr_open_input(FFWR_INSTREAM *pinput, char *name, int mode);
 int ffwr_close_input(FFWR_INSTREAM *pinput);
 int convert_frame(AVFrame *src, AVFrame *dst);
 int ffwr_close_input(FFWR_INSTREAM *pinput)
@@ -100,7 +102,7 @@ int ffwr_close_input(FFWR_INSTREAM *pinput)
     return ret;
 }
 
-int ffwr_open_input(FFWR_INSTREAM *pinput) {
+int ffwr_open_input(FFWR_INSTREAM *pinput, char *name, int mode) {
     int ret = 0;
     int result = 0;
     AVInputFormat *iformat = 0; 
@@ -121,107 +123,109 @@ int ffwr_open_input(FFWR_INSTREAM *pinput) {
 
 		av_dict_set(&options, "rtbufsize", "50M", 0);        
         result = avformat_open_input(&(pinput->fmt_ctx), 
-            "video=Integrated Webcam:audio=Microphone (2- Realtek(R) Audio)", 
-            iformat, &options);
+            name, iformat, &options);
 
         if(result < 0) {
             ret = 1;
             spllog(4, "--");
             break;
         }
-        result = avformat_find_stream_info(pinput->fmt_ctx, 0);
-        if(result < 0) {
-            ret = 1;
-            spllog(4, "--");
-            break;
-        }
-        if(pinput->fmt_ctx->nb_streams < 1) {
-            ret = 1;
-            spllog(4, "--");
-            break;
-        }
-        pinput->v_st = pinput->fmt_ctx->streams[0];
-        if(!pinput->v_st) {
-            ret = 1;
-            spllog(4, "--");
-            break;
-        }
-        pinput->v_codec = avcodec_find_decoder(AV_CODEC_ID_RAWVIDEO);
-        if(!pinput->v_codec) {
-            ret = 1;
-            spllog(4, "--");
-            break;
-        }        
-        pinput->v_cctx  = avcodec_alloc_context3(pinput->v_codec);
-        if(!pinput->v_cctx) {
-            ret = 1;
-            spllog(4, "--");
-            break;
-        }    
-        result = avcodec_parameters_to_context(pinput->v_cctx, pinput->v_st->codecpar);
-        if(result < 0) {
-            ret = 1;
-            spllog(4, "--");
-            break;
-        }
-		result = avcodec_open2(pinput->v_cctx, pinput->v_codec, 0);
-		if (result < 0) {
-            spllog(4, "--");
-			break;
-		}        
-        pinput->vframe = av_frame_alloc(); 
-        if(!pinput->vframe) {
-            ret = 1;
-            spllog(4, "--");
+        if(mode == 0) {
+            result = avformat_find_stream_info(pinput->fmt_ctx, 0);
+            if(result < 0) {
+                ret = 1;
+                spllog(4, "--");
+                break;
+            }
+            if(pinput->fmt_ctx->nb_streams < 1) {
+                ret = 1;
+                spllog(4, "--");
+                break;
+            }
+            pinput->v_st = pinput->fmt_ctx->streams[0];
+            if(!pinput->v_st) {
+                ret = 1;
+                spllog(4, "--");
+                break;
+            }
+            pinput->v_codec = avcodec_find_decoder(AV_CODEC_ID_RAWVIDEO);
+            if(!pinput->v_codec) {
+                ret = 1;
+                spllog(4, "--");
+                break;
+            }        
+            pinput->v_cctx  = avcodec_alloc_context3(pinput->v_codec);
+            if(!pinput->v_cctx) {
+                ret = 1;
+                spllog(4, "--");
+                break;
+            }    
+            result = avcodec_parameters_to_context(pinput->v_cctx, pinput->v_st->codecpar);
+            if(result < 0) {
+                ret = 1;
+                spllog(4, "--");
+                break;
+            }
+		    result = avcodec_open2(pinput->v_cctx, pinput->v_codec, 0);
+		    if (result < 0) {
+                spllog(4, "--");
+		    	break;
+		    }        
+            pinput->vframe = av_frame_alloc(); 
+            if(!pinput->vframe) {
+                ret = 1;
+                spllog(4, "--");
+                break;
+            }
             break;
         }
         /*------------------------------*/
-        if(pinput->fmt_ctx->nb_streams > 1) {
-            pinput->a_st = pinput->fmt_ctx->streams[1];
-        }
-        if(!pinput->a_st) {
-            ret = 1;
-            spllog(1, "---");
+        if(mode == 1) {
+            if(pinput->fmt_ctx->nb_streams > 0) {
+                pinput->a_st = pinput->fmt_ctx->streams[0];
+            }
+            if(!pinput->a_st) {
+                ret = 1;
+                spllog(1, "---");
+                break;
+            }
+            pinput->a_codec = avcodec_find_decoder(AV_CODEC_ID_PCM_S16LE);
+            if(!pinput->a_codec) {
+                ret = 1;
+                spllog(4, "--");
+                break;
+            }      
+            pinput->a_cctx  = avcodec_alloc_context3(pinput->a_codec);
+            if(!pinput->a_cctx) {
+                ret = 1;
+                spllog(4, "--a_cctx");
+                break;
+            }   
+            result = avcodec_parameters_to_context(pinput->a_cctx, pinput->a_st->codecpar);
+            if(result < 0) {
+                ret = 1;
+                spllog(4, "--");
+                break;
+            }   
+		    result = avcodec_open2(pinput->a_cctx, pinput->a_codec, 0);
+		    if (result < 0) {
+                spllog(4, "--");
+		    	break;
+		    } 
+            pinput->a_frame = av_frame_alloc(); 
+            if(!pinput->a_frame) {
+                ret = 1;
+                spllog(4, "--");
+                break;
+            }      
+            pinput->a_dstframe = av_frame_alloc(); 
+            if(!pinput->a_dstframe) {
+                ret = 1;
+                spllog(4, "--");
+                break;
+            }   
             break;
-        }
-        pinput->a_codec = avcodec_find_decoder(AV_CODEC_ID_PCM_S16LE);
-        if(!pinput->a_codec) {
-            ret = 1;
-            spllog(4, "--");
-            break;
-        }      
-        pinput->a_cctx  = avcodec_alloc_context3(pinput->a_codec);
-        if(!pinput->a_cctx) {
-            ret = 1;
-            spllog(4, "--a_cctx");
-            break;
-        }   
-        result = avcodec_parameters_to_context(pinput->a_cctx, pinput->a_st->codecpar);
-        if(result < 0) {
-            ret = 1;
-            spllog(4, "--");
-            break;
-        }   
-		result = avcodec_open2(pinput->a_cctx, pinput->a_codec, 0);
-		if (result < 0) {
-            spllog(4, "--");
-			break;
-		} 
-#if 1         
-        pinput->a_frame = av_frame_alloc(); 
-        if(!pinput->a_frame) {
-            ret = 1;
-            spllog(4, "--");
-            break;
-        }      
-        pinput->a_dstframe = av_frame_alloc(); 
-        if(!pinput->a_dstframe) {
-            ret = 1;
-            spllog(4, "--");
-            break;
-        }   
-
-#endif                                     
+        }                            
     } while(0);
     return ret;
 }
@@ -542,11 +546,12 @@ static AVFrame *get_audio_frame_trigger(OutputStream *ost) {
     //int16_t *q = (int16_t*)frame->data[0];
     int result = 0;
         /* check if we want to generate more frames */
-    //if (av_compare_ts(ost->next_pts, ost->enc->time_base,
-    //                  STREAM_DURATION, (AVRational){ 1, 1 }) > 0) {
-    //    return 0;
-	//}
+    if (av_compare_ts(ost->next_pts, ost->enc->time_base,
+                      STREAM_DURATION, (AVRational){ 1, 1 }) > 0) {
+        return 0;
+	}
     do {
+       
         result = av_read_frame(gb_instream.fmt_ctx, &(gb_instream.a_pkt));
         if(result < 0) {
             spllog(4, "---");
@@ -561,7 +566,8 @@ static AVFrame *get_audio_frame_trigger(OutputStream *ost) {
         if(result < 0) {
             spllog(4, "---");
             break;
-        }    
+        }   
+        spl_vframe(gb_instream.a_frame); 
         //frame->pts = ost->next_pts;
         //ost->next_pts  += frame->nb_samples;               
     } while(0);
@@ -591,7 +597,6 @@ static AVFrame *get_audio_frame(OutputStream *ost)
     frame->pts = ost->next_pts;
     ost->next_pts  += frame->nb_samples;
     spl_vframe(frame);
-    get_audio_frame_trigger(ost);
     return frame;
 #else
     AVFrame *frame = ost->tmp_frame;
@@ -915,7 +920,7 @@ int main(int argc, char **argv)
 	snprintf(input.id_name, 100, "mux");
 	ret = spl_init_log_ext(&input);
 
-    ffwr_open_input(&gb_instream);
+    ffwr_open_input(&gb_instream, "video=Integrated Webcam", 0);
 
     if (argc < 2) {
         printf("usage: %s output_file\n"
