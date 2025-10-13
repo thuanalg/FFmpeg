@@ -45,12 +45,12 @@
 #include <simplelog.h>
 #include <libavdevice/avdevice.h>
 #include <libavformat/avformat.h>
-#define NUMBER_FRAMES           600
+
 #define STREAM_DURATION   10.0
 #define STREAM_FRAME_RATE 25 /* 25 images/s */
 #define STREAM_PIX_FMT    AV_PIX_FMT_YUV422P /* default pix_fmt AV_PIX_FMT_YUV422P */
 //#define STREAM_PIX_FMT    AV_PIX_FMT_YUV420P /* default pix_fmt AV_PIX_FMT_YUV422P */
-
+#define NUMBER_FRAMES           (STREAM_FRAME_RATE * 5)
 #define SCALE_FLAGS SWS_BICUBIC
 /*+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+*/
 int count_frame = 0;
@@ -101,7 +101,7 @@ typedef struct __FFWR_INSTREAM__ {
 
 FFWR_INSTREAM gb_instream;
 FFWR_INSTREAM gb_instream_audio;
-
+static AVFrame *get_audio_frame_trigger(AVPacket *pkt);
 int ffwr_open_input(FFWR_INSTREAM *pinput, char *name, int mode);
 int ffwr_close_input(FFWR_INSTREAM *pinput);
 int convert_frame(AVFrame *src, AVFrame *dst);
@@ -145,16 +145,17 @@ int ffwr_open_input(FFWR_INSTREAM *pinput, char *name, int mode) {
             break;
         }
 
-		av_dict_set(&options, "rtbufsize", "50M", 0);        
+		av_dict_set(&options, "rtbufsize", "50M", 0);       
+
         result = avformat_open_input(&(pinput->fmt_ctx), 
-            name, iformat, &options);
+            "video=Integrated Webcam:audio=Microphone (2- Realtek(R) Audio)", iformat, &options);
 
         if(result < 0) {
             ret = 1;
             spllog(4, "--");
             break;
         }
-        if(mode == 0 || 1) {
+        //if(mode == 0 || 1) {
             result = avformat_find_stream_info(pinput->fmt_ctx, 0);
             if(result < 0) {
                 ret = 1;
@@ -192,7 +193,7 @@ int ffwr_open_input(FFWR_INSTREAM *pinput, char *name, int mode) {
             }
 		    result = avcodec_open2(pinput->v_cctx, pinput->v_codec, 0);
 		    if (result < 0) {
-                spllog(4, "--");
+                spllog(4, "avcodec_open2, result: %d", result);
 		    	break;
 		    }        
             pinput->vframe = av_frame_alloc(); 
@@ -201,12 +202,12 @@ int ffwr_open_input(FFWR_INSTREAM *pinput, char *name, int mode) {
                 spllog(4, "--");
                 break;
             }
-            break;
-        }
+            
+        //}
         /*------------------------------*/
-        if(mode == 1 || 1) {
-            if(pinput->fmt_ctx->nb_streams > 0) {
-                pinput->a_st = pinput->fmt_ctx->streams[0];
+        //if(mode == 1 || 1) {
+            if(pinput->fmt_ctx->nb_streams > 1) {
+                pinput->a_st = pinput->fmt_ctx->streams[1];
             }
             if(!pinput->a_st) {
                 ret = 1;
@@ -248,8 +249,8 @@ int ffwr_open_input(FFWR_INSTREAM *pinput, char *name, int mode) {
                 spllog(4, "--");
                 break;
             }   
-            break;
-        }                            
+           
+        //}                            
     } while(0);
     return ret;
 }
@@ -550,28 +551,11 @@ static void open_audio(AVFormatContext *oc, const AVCodec *codec,
 
 /* Prepare a 16 bit dummy audio frame of 'frame_size' samples and
  * 'nb_channels' channels. */
-static AVFrame *get_audio_frame_trigger(OutputStream *ost) {
-    FFWR_INSTREAM *p = &gb_instream_audio;
-    //AVFrame *frame = ost->tmp_frame;
+static AVFrame *get_audio_frame_trigger(AVPacket *pkt) {
+    FFWR_INSTREAM *p = &gb_instream;
     int result = 0;
-        /* check if we want to generate more frames */
-    //if (av_compare_ts(ost->next_pts, ost->enc->time_base,
-    //                  STREAM_DURATION, (AVRational){ 1, 1 }) > 0) {
-    //    return 0;
-	//}
-    do {
-        spllog(1, "count_frame: %d", count_frame);
-        if(count_frame > NUMBER_FRAMES) {
-            break;
-        }
-        return 0;
-        result = av_read_frame(p->fmt_ctx, &(p->a_pkt));
-        if(result < 0) {
-            spllog(4, "---");
-            break;
-        }
-        
-        result = avcodec_send_packet(p->a_cctx, &(p->a_pkt));
+    do {        
+        result = avcodec_send_packet(p->a_cctx, pkt);
         if(result < 0) {
             spllog(4, "---");
             break;
@@ -621,10 +605,10 @@ static AVFrame *get_audio_frame(OutputStream *ost)
     frame->pts = ost->next_pts;
     ost->next_pts  += frame->nb_samples;
     spl_vframe(frame); 
-    //get_audio_frame_trigger(ost);
+
     return frame;
 #else
-    return get_audio_frame_trigger(ost);
+    
 #endif    
 }
 
@@ -804,8 +788,9 @@ static void fill_yuv_image(void *sourceInput, AVFrame *pict, int frame_index,
             break;
         }
         if(gb_instream.pkt.stream_index) {
-            spllog(1, "For audio, stream_index: %d, count_frame_audio: %d", 
-                gb_instream.pkt.stream_index, (++count_frame_audio));
+            spllog(1, "For audio, stream_index: %d, count_frame_audio: %d, count__frame: %d", 
+                gb_instream.pkt.stream_index, (++count_frame_audio), count_frame);
+            //get_audio_frame_trigger(&(gb_instream.pkt));
             break;
         }
         result = avcodec_send_packet(gb_instream.v_cctx, &(gb_instream.pkt));
@@ -926,7 +911,6 @@ int main(int argc, char **argv)
 	ret = spl_init_log_ext(&input);
 
     ffwr_open_input(&gb_instream, "video=Integrated Webcam:audio=Microphone (2- Realtek(R) Audio)", 0);
-    //ffwr_open_input(&gb_instream_audio, "audio=Microphone (2- Realtek(R) Audio)", 1);
 
     if (argc < 2) {
         printf("usage: %s output_file\n"
