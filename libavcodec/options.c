@@ -148,13 +148,17 @@ static int init_context_defaults(AVCodecContext *s, const AVCodec *codec)
 
 AVCodecContext *avcodec_alloc_context3(const AVCodec *codec)
 {
+#if 0    
     AVCodecContext *avctx= av_malloc(sizeof(AVCodecContext));
-
+#else
+    AVCodecContext *avctx= 0;
+    av_spl_malloc(sizeof(AVCodecContext), avctx);
+#endif
     if (!avctx)
         return NULL;
 
     if (init_context_defaults(avctx, codec) < 0) {
-        av_free(avctx);
+        av_spl_free(avctx);
         return NULL;
     }
 
@@ -170,15 +174,15 @@ void avcodec_free_context(AVCodecContext **pavctx)
 
     ff_codec_close(avctx);
 
-    av_freep(&avctx->extradata);
-    av_freep(&avctx->subtitle_header);
-    av_freep(&avctx->intra_matrix);
-    av_freep(&avctx->chroma_intra_matrix);
-    av_freep(&avctx->inter_matrix);
-    av_freep(&avctx->rc_override);
+    av_spl_freep(&avctx->extradata);
+    av_spl_freep(&avctx->subtitle_header);
+    av_spl_freep(&avctx->intra_matrix);
+    av_spl_freep(&avctx->chroma_intra_matrix);
+    av_spl_freep(&avctx->inter_matrix);
+    av_spl_freep(&avctx->rc_override);
     av_channel_layout_uninit(&avctx->ch_layout);
 
-    av_freep(pavctx);
+    av_spl_freep(pavctx);
 }
 
 const AVClass *avcodec_get_class(void)

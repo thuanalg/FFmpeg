@@ -51,8 +51,12 @@ static void get_frame_defaults(AVFrame *frame)
 
 AVFrame *av_frame_alloc(void)
 {
+#if 0   
     AVFrame *frame = av_malloc(sizeof(*frame));
-
+#else
+    AVFrame *frame = 0;
+    av_spl_malloc(sizeof(*frame), frame);
+#endif
     if (!frame)
         return NULL;
 
@@ -67,7 +71,7 @@ void av_frame_free(AVFrame **frame)
         return;
 
     av_frame_unref(*frame);
-#if 0    
+#if 1    
     av_freep(frame);
 #else
     av_spl_freep(frame);    

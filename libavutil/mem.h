@@ -120,7 +120,7 @@
 	{                                                                      \
 		(__obj__) = av_malloc(__nn__);                        \
 		if (__obj__) {                                                 \
-			spllog(0, "av_malloc [MEM-FFWR] : 0x%p.", (__obj__));           \
+			spllog(0, "av_malloc [MEM-FFWR] : 0x%p, size: %d.", (__obj__), (__nn__));           \
 			memset((__obj__), 0, (__nn__));                        \
 		} else {                                                       \
 			spllog(4, "av_malloc: error.");                           \
@@ -152,7 +152,7 @@ void *av_mallocz(size_t size) av_malloc_attrib av_alloc_size(1);
 	{                                                                      \
 		(__obj__) = av_mallocz(__nn__);                        \
 		if (__obj__) {                                                 \
-			spllog(0, "av_mallocz [MEM-FFWR] : 0x%p.", (__obj__));           \
+			spllog(0, "av_mallocz [MEM-FFWR] : 0x%p, size: %d.", (__obj__), (__nn__));           \
 			memset((__obj__), 0, (__nn__));                        \
 		} else {                                                       \
 			spllog(4, "av_mallocz: error.");                           \
