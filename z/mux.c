@@ -1020,6 +1020,8 @@ int main(int argc, char **argv)
     while (encode_video || encode_audio) {
         /* select the stream to encode */
         if(count_frame > NUMBER_FRAMES) {
+            avcodec_send_frame(video_st.enc, 0);
+            avcodec_send_frame(audio_st.enc, 0);
             break;
         }
 #if 0            
@@ -1041,7 +1043,7 @@ int main(int argc, char **argv)
         }
 #endif    
     }
-
+    spl_milli_sleep(100);
     av_write_trailer(oc);
 
     /* Close each codec. */
