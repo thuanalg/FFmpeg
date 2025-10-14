@@ -46,11 +46,11 @@
 #include <libavdevice/avdevice.h>
 #include <libavformat/avformat.h>
 
-#define STREAM_DURATION   10.0
+#define STREAM_DURATION   20.0
 #define STREAM_FRAME_RATE 25 /* 25 images/s */
 #define STREAM_PIX_FMT    AV_PIX_FMT_YUV422P /* default pix_fmt AV_PIX_FMT_YUV422P */
 //#define STREAM_PIX_FMT    AV_PIX_FMT_YUV420P /* default pix_fmt AV_PIX_FMT_YUV422P */
-#define NUMBER_FRAMES           (STREAM_FRAME_RATE * 10)
+#define NUMBER_FRAMES           (STREAM_FRAME_RATE * STREAM_DURATION)
 #define SCALE_FLAGS SWS_BICUBIC
 /*+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+*/
 int count_frame = 0;
@@ -631,6 +631,7 @@ static int write_audio_frame(AVFormatContext *oc, OutputStream *ost)
     frame = gb_instream.a_frame;
 #endif    
     spl_vframe(frame);
+    bytes_per_sample = av_get_bytes_per_sample(frame->format);
     if (frame && frame->pts) {
         while(step < frame->nb_samples) {
 #if 0            
@@ -663,12 +664,15 @@ static int write_audio_frame(AVFormatContext *oc, OutputStream *ost)
             ret = write_frame(oc, c, ost->st, frame, ost->tmp_pkt);   
             step += NUM_STEP;                           
 #else
+
             k = MINNN(NUM_STEP, (frame->nb_samples - step));
-            if(k < NUM_STEP) {
-                break;
-            }
+            //if(k < NUM_STEP) {
+            //    break;
+            //}
             //dst_nb_samples = swr_get_delay(ost->swr_ctx, c->sample_rate) + frame->nb_samples;
             dst_nb_samples = k;
+            frame->pts = ost->next_pts;
+            ost->next_pts  += k;
             //av_assert0(dst_nb_samples == frame->nb_samples);
 
             /* when we pass a frame to the encoder, it may keep a reference to it
@@ -678,11 +682,11 @@ static int write_audio_frame(AVFormatContext *oc, OutputStream *ost)
             ret = av_frame_make_writable(ost->frame);
             if (ret < 0)
                 exit(1);
-            bytes_per_sample = av_get_bytes_per_sample(frame->format);
+            
             if(!p) {
                 p = frame->data[0];
             } else {
-                p += bytes_per_sample * k;
+                p += (bytes_per_sample * k * frame->ch_layout.nb_channels);
             }
             //p = frame->data[0] + step;
         /* convert to destination format */
