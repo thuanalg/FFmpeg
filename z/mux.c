@@ -566,14 +566,7 @@ static AVFrame *get_audio_frame_trigger(AVPacket *pkt) {
             spllog(4, "---");
             break;
         }   
-        spl_vframe(p->a_frame); 
-        //p->a_frame->nb_samples
-        //convert_audio_frame(ost, p->a_frame, p->a_dstframe);
-        //p->a_frame->pts = ost->next_pts;
-        //ost->next_pts  += p->a_frame->nb_samples;  
-
-        //frame->pts = ost->next_pts;
-        //ost->next_pts  += frame->nb_samples;               
+        spl_vframe(p->a_frame);              
     } while(0);
 
     return p->a_dstframe;    
@@ -618,69 +611,103 @@ static AVFrame *get_audio_frame(OutputStream *ost)
  * encode one audio frame and send it to the muxer
  * return 1 when encoding is finished, 0 otherwise
  */
+#define MINNN(a__, __b) ((a__) < (__b)) ? (a__) : (__b)
+#define NUM_STEP 1024
 static int write_audio_frame(AVFormatContext *oc, OutputStream *ost)
 {
     AVCodecContext *c = 0;
     AVFrame *frame = 0;
+    AVFrame *aframe = 0;
     int ret = 0;
     int dst_nb_samples = 0;
-
+    int step = 0;
+    int k = 0;
+    uint8_t *p = 0;
     c = ost->enc;
-
+    int bytes_per_sample = 0;
+#if 0
     frame = get_audio_frame(ost);
+#else    
+    frame = gb_instream.a_frame;
+#endif    
     spl_vframe(frame);
-    if (frame) {
-        /* convert samples from native format to destination codec format, using the resampler */
-        /* compute destination number of samples */
-        dst_nb_samples = swr_get_delay(ost->swr_ctx, c->sample_rate) + frame->nb_samples;
-        av_assert0(dst_nb_samples == frame->nb_samples);
+    if (frame && frame->pts) {
+        while(step < frame->nb_samples) {
+#if 0            
+            /* convert samples from native format to destination codec format, using the resampler */
+            /* compute destination number of samples */
+            k = MINNN(NUM_STEP, (frame->nb_samples - step));
+            dst_nb_samples = swr_get_delay(ost->swr_ctx, c->sample_rate) + frame->nb_samples;
+            av_assert0(dst_nb_samples == frame->nb_samples);
 
-        /* when we pass a frame to the encoder, it may keep a reference to it
-         * internally;
-         * make sure we do not overwrite it here
-         */
-        ret = av_frame_make_writable(ost->frame);
-        if (ret < 0)
-            exit(1);
-#if 1
+            /* when we pass a frame to the encoder, it may keep a reference to it
+             * internally;
+             * make sure we do not overwrite it here
+             */
+            ret = av_frame_make_writable(ost->frame);
+            if (ret < 0)
+                exit(1);
+
         /* convert to destination format */
-        ret = swr_convert(ost->swr_ctx, ost->frame->data, dst_nb_samples, (const uint8_t **)frame->data, frame->nb_samples);
+            ret = swr_convert(ost->swr_ctx, ost->frame->data, dst_nb_samples, 
+                (const uint8_t **)frame->data, frame->nb_samples);
 
-        if (ret < 0) {
-            spllog(1, "Error while converting\n");
-            exit(1);
-        }
+            if (ret < 0) {
+                spllog(1, "Error while converting\n");
+                exit(1);
+            }
 
-        frame = ost->frame;   
-        frame->pts = av_rescale_q(ost->samples_count, (AVRational){1, c->sample_rate}, c->time_base);
-        ost->samples_count += dst_nb_samples;                               
+            frame = ost->frame;   
+            frame->pts = av_rescale_q(ost->samples_count, (AVRational){1, c->sample_rate}, c->time_base);
+            ost->samples_count += dst_nb_samples; 
+            ret = write_frame(oc, c, ost->st, frame, ost->tmp_pkt);   
+            step += NUM_STEP;                           
 #else
-        if(!(ost->a_frame)) {
-            ost->a_frame = av_frame_alloc();
-            ost->a_frame->format = frame->format;
-            ost->a_frame->sample_rate = frame->sample_rate;
-        }
-        ret = av_frame_get_buffer(ost->a_frame, 0);
-	    if (ret < 0) {
-	    	spllog(4, "Error: cannot allocate dst buffer (%d)\n", ret);
-	    	swr_free(&(ost->swr_ctx));
-	    	return ret;
-	    }
-        /* convert to destination format */
-        ret = swr_convert(ost->swr_ctx, ost->frame->data, dst_nb_samples,  (const uint8_t **)frame->data, frame->nb_samples);
-                         
-        if (ret < 0) {
-            spllog(1, "Error while converting\n");
-            exit(1);
-        }
+            k = MINNN(NUM_STEP, (frame->nb_samples - step));
+            if(k < NUM_STEP) {
+                break;
+            }
+            //dst_nb_samples = swr_get_delay(ost->swr_ctx, c->sample_rate) + frame->nb_samples;
+            dst_nb_samples = k;
+            //av_assert0(dst_nb_samples == frame->nb_samples);
 
-        frame = ost->a_frame; 
-        frame->pts = av_rescale_q(ost->samples_count, (AVRational){1, c->sample_rate}, c->time_base);
-        ost->samples_count += dst_nb_samples;
+            /* when we pass a frame to the encoder, it may keep a reference to it
+             * internally;
+             * make sure we do not overwrite it here
+             */
+            ret = av_frame_make_writable(ost->frame);
+            if (ret < 0)
+                exit(1);
+            bytes_per_sample = av_get_bytes_per_sample(frame->format);
+            if(!p) {
+                p = frame->data[0];
+            } else {
+                p += bytes_per_sample * k;
+            }
+            //p = frame->data[0] + step;
+        /* convert to destination format */
+            ret = swr_convert(ost->swr_ctx, ost->frame->data, dst_nb_samples, 
+                (const uint8_t **) &p, k);
+            spllog(1, "(p, ret, bytes_per_sample)=(0x%p, %d, %d)", p, ret, bytes_per_sample); 
+            if (ret < 0) {
+                spllog(1, "Error while converting\n");
+                exit(1);
+            }
+
+            aframe = ost->frame;   
+            aframe->pts = av_rescale_q(ost->samples_count, (AVRational){1, c->sample_rate}, c->time_base);
+            ost->samples_count += dst_nb_samples; 
+            ret = write_frame(oc, c, ost->st, aframe, ost->tmp_pkt);  
+           
+            step += NUM_STEP;    
+            //break;
 #endif
+        }
     }
+    av_frame_unref(gb_instream.a_frame);
+    
     spl_vframe(frame);
-    return write_frame(oc, c, ost->st, frame, ost->tmp_pkt);
+    return ret;
 }
 
 /**************************************************************/
@@ -990,16 +1017,24 @@ int main(int argc, char **argv)
         if(count_frame > NUMBER_FRAMES) {
             break;
         }
+#if 0            
         if (encode_video &&
             (!encode_audio || av_compare_ts(video_st.next_pts, video_st.enc->time_base,
                                             audio_st.next_pts, audio_st.enc->time_base) <= 0)) 
                                             {
             encode_video = !write_video_frame(oc, &video_st);
         } 
+    
         else 
         {
             encode_audio = !write_audio_frame(oc, &audio_st);
         }
+#else
+        write_video_frame(oc, &video_st);
+        if(gb_instream.a_frame->nb_samples)  {
+            encode_audio = !write_audio_frame(oc, &audio_st);
+        }
+#endif    
     }
 
     av_write_trailer(oc);
