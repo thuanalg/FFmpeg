@@ -977,7 +977,8 @@ int main(int argc, char **argv)
     /* Add the audio and video streams using the default format codecs
      * and initialize the codecs. */
     if (fmt->video_codec != AV_CODEC_ID_NONE) {
-        add_stream(&video_st, oc, &video_codec, fmt->video_codec);
+        //add_stream(&video_st, oc, &video_codec, fmt->video_codec);
+        add_stream(&video_st, oc, &video_codec, AV_CODEC_ID_HEVC);
         have_video = 1;
         encode_video = 1;
     }
