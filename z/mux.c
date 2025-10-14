@@ -671,8 +671,7 @@ static int write_audio_frame(AVFormatContext *oc, OutputStream *ost)
             //}
             //dst_nb_samples = swr_get_delay(ost->swr_ctx, c->sample_rate) + frame->nb_samples;
             dst_nb_samples = k;
-            frame->pts = ost->next_pts;
-            ost->next_pts  += k;
+
             //av_assert0(dst_nb_samples == frame->nb_samples);
 
             /* when we pass a frame to the encoder, it may keep a reference to it
@@ -699,6 +698,8 @@ static int write_audio_frame(AVFormatContext *oc, OutputStream *ost)
             }
 
             aframe = ost->frame;   
+            aframe->pts = ost->next_pts;
+            ost->next_pts  += k;        
             aframe->pts = av_rescale_q(ost->samples_count, (AVRational){1, c->sample_rate}, c->time_base);
             ost->samples_count += dst_nb_samples; 
             ret = write_frame(oc, c, ost->st, aframe, ost->tmp_pkt);  
