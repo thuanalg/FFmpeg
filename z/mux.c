@@ -964,7 +964,9 @@ int main(int argc, char **argv)
     }
 
     /* allocate the output media context */
-    avformat_alloc_output_context2(&oc, NULL, NULL, filename);
+    avformat_alloc_output_context2(&oc, NULL, 0, filename);
+    ret = avformat_alloc_output_context2(&oc, NULL, "mpegts", NULL);
+    //ret = avio_open2(&oc->pb, "udp://127.0.0.1:1234?pkt_size=1316", AVIO_FLAG_WRITE, NULL, NULL);
     if (!oc) {
         printf("Could not deduce output format from file extension: using MPEG.\n");
         avformat_alloc_output_context2(&oc, NULL, "mpeg", filename);
@@ -977,14 +979,16 @@ int main(int argc, char **argv)
     /* Add the audio and video streams using the default format codecs
      * and initialize the codecs. */
     if (fmt->video_codec != AV_CODEC_ID_NONE) {
-        //add_stream(&video_st, oc, &video_codec, fmt->video_codec);//264
-        //add_stream(&video_st, oc, &video_codec, AV_CODEC_ID_HEVC);
-        add_stream(&video_st, oc, &video_codec, AV_CODEC_ID_AV1);
+        //add_stream(&video_st, oc, &video_codec, fmt->video_codec);//AV_CODEC_ID_H264, AV_CODEC_ID_HEVC
+        add_stream(&video_st, oc, &video_codec, AV_CODEC_ID_H264);
+        //add_stream(&video_st, oc, &video_codec, AV_CODEC_ID_AV1);
         have_video = 1;
         encode_video = 1;
     }
     if (fmt->audio_codec != AV_CODEC_ID_NONE) {
-        add_stream(&audio_st, oc, &audio_codec, fmt->audio_codec);
+        //add_stream(&audio_st, oc, &audio_codec, fmt->audio_codec);
+        add_stream(&audio_st, oc, &audio_codec, AV_CODEC_ID_AAC);
+        //AV_CODEC_ID_AAC
 #if 1        
         have_audio = 1;
         encode_audio = 1;
@@ -1003,7 +1007,8 @@ int main(int argc, char **argv)
 
     /* open the output file, if needed */
     if (!(fmt->flags & AVFMT_NOFILE)) {
-        ret = avio_open(&oc->pb, filename, AVIO_FLAG_WRITE);
+        //ret = avio_open(&oc->pb, filename, AVIO_FLAG_WRITE);
+        ret = avio_open2(&oc->pb, "tcp://127.0.0.1:12345?pkt_size=1316", AVIO_FLAG_WRITE, NULL, NULL);
         if (ret < 0) {
             fprintf(stderr, "Could not open '%s': %s\n", filename,
                     av_err2str(ret));

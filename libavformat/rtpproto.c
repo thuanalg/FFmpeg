@@ -42,6 +42,9 @@
 #include <poll.h>
 #endif
 
+
+
+
 typedef struct RTPContext {
     const AVClass *class;
     URLContext *rtp_hd, *rtcp_hd, *fec_hd;
@@ -408,8 +411,13 @@ static int rtp_read(URLContext *h, uint8_t *buf, int size)
                 if (!(p[i].revents & POLLIN))
                     continue;
                 *addr_lens[i] = sizeof(*addrs[i]);
+#if 0                
                 len = recvfrom(p[i].fd, buf, size, 0,
                                 (struct sockaddr *)addrs[i], addr_lens[i]);
+#else
+                spl_recvfrom(len, p[i].fd, buf, size, 0,
+                                (struct sockaddr *)addrs[i], addr_lens[i]);
+#endif                                
                 if (len < 0) {
                     if (ff_neterrno() == AVERROR(EAGAIN) ||
                         ff_neterrno() == AVERROR(EINTR))
@@ -490,9 +498,13 @@ static int rtp_write(URLContext *h, const uint8_t *buf, int size)
             if (ret < 0)
                 return ret;
         }
+#if 0        
         ret = sendto(fd, buf, size, 0, (struct sockaddr *) source,
                      *source_len);
-
+#else
+        spl_sendto(ret, fd, buf, size, 0, (struct sockaddr *) source,
+                     *source_len);
+#endif
         return ret < 0 ? ff_neterrno() : ret;
     }
 

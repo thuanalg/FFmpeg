@@ -3771,7 +3771,8 @@ int main(int argc, char **argv)
     VideoState *is;
     SPL_INPUT_ARG input = {0};
     
-    snprintf(input.folder, 32, "%s", "z.cfg");
+    snprintf(input.folder, 32, "%s", "zffplay.cfg");
+    snprintf(input.id_name, 100, "ffplay");
     ret  = spl_init_log_ext(&input);
     if(ret) {
         fprintf(stderr, "spl_init_log_ext");

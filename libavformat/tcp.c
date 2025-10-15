@@ -320,7 +320,11 @@ static int tcp_write(URLContext *h, const uint8_t *buf, int size)
         if (ret)
             return ret;
     }
+#if 0    
     ret = send(s->fd, buf, size, MSG_NOSIGNAL);
+#else 
+    spl_send(ret, s->fd, buf, size, MSG_NOSIGNAL);
+#endif    
     return ret < 0 ? ff_neterrno() : ret;
 }
 

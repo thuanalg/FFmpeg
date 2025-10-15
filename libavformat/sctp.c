@@ -332,7 +332,7 @@ static int sctp_write(URLContext *h, const uint8_t *buf, int size)
         if (ret < 0)
             return ret;
     }
-
+#if 0
     if (s->max_streams) {
         /*StreamId is introduced as a 2byte code into the stream*/
         struct sctp_sndrcvinfo info = { 0 };
@@ -344,7 +344,19 @@ static int sctp_write(URLContext *h, const uint8_t *buf, int size)
         ret = ff_sctp_send(s->fd, buf + 2, size - 2, &info, MSG_EOR);
     } else
         ret = send(s->fd, buf, size, MSG_NOSIGNAL);
-
+#else 
+    if (s->max_streams) {
+        /*StreamId is introduced as a 2byte code into the stream*/
+        struct sctp_sndrcvinfo info = { 0 };
+        info.sinfo_stream           = AV_RB16(buf);
+        if (info.sinfo_stream > s->max_streams) {
+            av_log(h, AV_LOG_ERROR, "bad input data\n");
+            return AVERROR_BUG;
+        }
+        ret = ff_sctp_send(s->fd, buf + 2, size - 2, &info, MSG_EOR);
+    } else
+        spl_send(ret, s->fd, buf, size, MSG_NOSIGNAL);
+#endif
     return ret < 0 ? ff_neterrno() : ret;
 }
 

@@ -78,6 +78,8 @@
 #define UDP_MAX_PKT_SIZE 65536
 #define UDP_HEADER_SIZE 8
 
+
+
 typedef struct UDPQueuedPacketHeader {
     int pkt_size;
     struct sockaddr_storage addr;
@@ -366,12 +368,13 @@ static int udp_socket_create(URLContext *h, struct sockaddr_storage *addr,
     int udp_fd = -1;
     struct addrinfo *res0, *res;
     int family = AF_UNSPEC;
-
+    
     if (((struct sockaddr *) &s->dest_addr)->sa_family)
         family = ((struct sockaddr *) &s->dest_addr)->sa_family;
     res0 = ff_ip_resolve_host(h, (localaddr && localaddr[0]) ? localaddr : NULL,
                             s->local_port,
                             SOCK_DGRAM, family, AI_PASSIVE);
+    spllog(1, "(localaddr, port)=(%s, %d)", localaddr, s->local_port);                        
     if (!res0)
         goto fail;
     for (res = res0; res; res=res->ai_next) {
@@ -660,7 +663,11 @@ static void *circular_buffer_task_tx( void *_URLContext)
                             (struct sockaddr *) &s->dest_addr,
                             s->dest_addr_len);
             } else
+#if 0            
                 ret = send(s->udp_fd, p, len, 0);
+#else
+                spl_send(ret, s->udp_fd, p, len, 0);                       
+#endif                
             if (ret >= 0) {
                 len -= ret;
                 p   += ret;
@@ -1042,7 +1049,7 @@ static int udp_read(URLContext *h, uint8_t *buf, int size)
     int ret;
 #if HAVE_PTHREAD_CANCEL
     int avail, nonblock = h->flags & AVIO_FLAG_NONBLOCK;
-
+    spllog(1, "(fd)=(%d)", s->udp_fd);
     if (s->rx_fifo) {
         pthread_mutex_lock(&s->mutex);
         do {
@@ -1081,7 +1088,11 @@ static int udp_read(URLContext *h, uint8_t *buf, int size)
                 int err = pthread_cond_timedwait(&s->cond, &s->mutex, &tv);
                 if (err) {
                     pthread_mutex_unlock(&s->mutex);
+#if 1                    
                     return AVERROR(err == ETIMEDOUT ? EAGAIN : err);
+#else
+                    break;                    
+#endif                    
                 }
                 nonblock = 1;
             }
@@ -1095,7 +1106,11 @@ static int udp_read(URLContext *h, uint8_t *buf, int size)
             return ret;
     }
     s->last_recv_addr_len = sizeof(s->last_recv_addr);
+#if 0    
     ret = recvfrom(s->udp_fd, buf, size, 0, (struct sockaddr *)&s->last_recv_addr, &s->last_recv_addr_len);
+#else
+    spl_recvfrom(ret, s->udp_fd, buf, size, 0, (struct sockaddr *)&s->last_recv_addr, &s->last_recv_addr_len);
+#endif    
     if (ret < 0)
         return ff_neterrno();
     if (ff_ip_check_source_lists(&s->last_recv_addr, &s->filters))
@@ -1142,14 +1157,21 @@ static int udp_write(URLContext *h, const uint8_t *buf, int size)
         if (ret < 0)
             return ret;
     }
-
+#if 0
     if (!s->is_connected) {
-        ret = sendto (s->udp_fd, buf, size, 0,
+        ret = sendto(s->udp_fd, buf, size, 0,
                       (struct sockaddr *) &s->dest_addr,
                       s->dest_addr_len);
     } else
         ret = send(s->udp_fd, buf, size, 0);
-
+#else
+    if (!s->is_connected) {
+        spl_sendto(ret, s->udp_fd, buf, size, 0,
+                      (struct sockaddr *) &s->dest_addr,
+                      s->dest_addr_len);
+    } else
+        spl_send(ret, s->udp_fd, buf, size, 0);
+#endif
     return ret < 0 ? ff_neterrno() : ret;
 }
 
