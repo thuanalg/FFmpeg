@@ -911,7 +911,7 @@ static void get_sdl_pix_fmt_and_blendmode(int format, Uint32 *sdl_pix_fmt, SDL_B
 #ifndef spl_SDL_UpdateYUVTexture
     #define spl_SDL_UpdateYUVTexture(__ret__, __0__, __1__, __2__, __3__, __4__, __5__, __6__, __7__) {\
         (__ret__) = SDL_UpdateYUVTexture((__0__), (__1__), (__2__), (__3__), (__4__), (__5__), (__6__), (__7__)); \
-        spllog(1, "linesize[0]: %d", (__2__));\
+        spllog(1, "linesize[0]: %d", (__3__));\
     }
 #endif
 
@@ -920,6 +920,7 @@ static int upload_texture(SDL_Texture **tex, AVFrame *frame)
     int ret = 0;
     Uint32 sdl_pix_fmt;
     SDL_BlendMode sdl_blendmode;
+    spl_vframe(frame);
     get_sdl_pix_fmt_and_blendmode(frame->format, &sdl_pix_fmt, &sdl_blendmode);
     if (realloc_texture(tex, sdl_pix_fmt == SDL_PIXELFORMAT_UNKNOWN ? SDL_PIXELFORMAT_ARGB8888 : sdl_pix_fmt, frame->width, frame->height, sdl_blendmode, 0) < 0)
         return -1;
