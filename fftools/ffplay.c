@@ -901,6 +901,19 @@ static void get_sdl_pix_fmt_and_blendmode(int format, Uint32 *sdl_pix_fmt, SDL_B
         }
     }
 }
+#ifndef spl_SDL_UpdateTexture
+    #define spl_SDL_UpdateTexture(__ret__, __0__, __1__, __2__, __3__) {\
+        (__ret__) = SDL_UpdateTexture((__0__), (__1__), (__2__), (__3__)); \
+        spllog(1, "linesize[0]: %d", (__3__));\
+    }
+#endif
+
+#ifndef spl_SDL_UpdateYUVTexture
+    #define spl_SDL_UpdateYUVTexture(__ret__, __0__, __1__, __2__, __3__, __4__, __5__, __6__, __7__) {\
+        (__ret__) = SDL_UpdateYUVTexture((__0__), (__1__), (__2__), (__3__), (__4__), (__5__), (__6__), (__7__)); \
+        spllog(1, "linesize[0]: %d", (__2__));\
+    }
+#endif
 
 static int upload_texture(SDL_Texture **tex, AVFrame *frame)
 {
@@ -912,6 +925,7 @@ static int upload_texture(SDL_Texture **tex, AVFrame *frame)
         return -1;
     switch (sdl_pix_fmt) {
         case SDL_PIXELFORMAT_IYUV:
+#if 0        
             if (frame->linesize[0] > 0 && frame->linesize[1] > 0 && frame->linesize[2] > 0) {
                 ret = SDL_UpdateYUVTexture(*tex, NULL, frame->data[0], frame->linesize[0],
                                                        frame->data[1], frame->linesize[1],
@@ -924,13 +938,42 @@ static int upload_texture(SDL_Texture **tex, AVFrame *frame)
                 av_log(NULL, AV_LOG_ERROR, "Mixed negative and positive linesizes are not supported.\n");
                 return -1;
             }
+#else
+            if (frame->linesize[0] > 0 && frame->linesize[1] > 0 && frame->linesize[2] > 0) {
+                spl_SDL_UpdateYUVTexture(ret, *tex, NULL, 
+                    frame->data[0], frame->linesize[0], 
+                    frame->data[1], frame->linesize[1], 
+                    frame->data[2], frame->linesize[2]);
+
+            } else if (frame->linesize[0] < 0 && frame->linesize[1] < 0 && frame->linesize[2] < 0) {
+                spl_SDL_UpdateYUVTexture(ret, *tex, NULL, 
+                    frame->data[0] + frame->linesize[0] * (frame->height                    - 1), 
+                    -frame->linesize[0], 
+                    frame->data[1] + frame->linesize[1] * (AV_CEIL_RSHIFT(frame->height, 1) - 1), 
+                    -frame->linesize[1], 
+                    frame->data[2] + frame->linesize[2] * (AV_CEIL_RSHIFT(frame->height, 1) - 1), -frame->linesize[2]);
+            } else {
+                av_log(NULL, AV_LOG_ERROR, "Mixed negative and positive linesizes are not supported.\n");
+                return -1;
+            }
+#endif            
             break;
         default:
+#if 0        
             if (frame->linesize[0] < 0) {
                 ret = SDL_UpdateTexture(*tex, NULL, frame->data[0] + frame->linesize[0] * (frame->height - 1), -frame->linesize[0]);
             } else {
                 ret = SDL_UpdateTexture(*tex, NULL, frame->data[0], frame->linesize[0]);
             }
+#else
+            if (frame->linesize[0] < 0) {
+                spl_SDL_UpdateTexture(ret, *tex, NULL, 
+                    frame->data[0] + frame->linesize[0] * (frame->height - 1), 
+                    -frame->linesize[0]);
+            } else {
+                spl_SDL_UpdateTexture(ret, *tex, NULL, frame->data[0], frame->linesize[0]);
+            }
+#endif            
             break;
     }
     return ret;
