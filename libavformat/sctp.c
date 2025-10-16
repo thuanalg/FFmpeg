@@ -309,7 +309,7 @@ static int sctp_read(URLContext *h, uint8_t *buf, int size)
         if (ret < 0)
             return ret;
     }
-
+#if 0
     if (s->max_streams) {
         /*StreamId is introduced as a 2byte code into the stream*/
         struct sctp_sndrcvinfo info = { 0 };
@@ -318,7 +318,16 @@ static int sctp_read(URLContext *h, uint8_t *buf, int size)
         ret = ret < 0 ? ret : ret + 2;
     } else
         ret = recv(s->fd, buf, size, 0);
-
+#else
+    if (s->max_streams) {
+        /*StreamId is introduced as a 2byte code into the stream*/
+        struct sctp_sndrcvinfo info = { 0 };
+        ret = ff_sctp_recvmsg(s->fd, buf + 2, size - 2, NULL, 0, &info, 0);
+        AV_WB16(buf, info.sinfo_stream);
+        ret = ret < 0 ? ret : ret + 2;
+    } else
+        spl_recv(ret, s->fd, buf, size, 0);
+#endif 
     return ret < 0 ? ff_neterrno() : ret;
 }
 

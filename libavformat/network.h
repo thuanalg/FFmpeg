@@ -348,7 +348,7 @@ int ff_udp_set_remote_addr(URLContext *h, const struct sockaddr *dest_addr, sock
 #ifndef spl_sendto
 #define spl_sendto(__ret__, __sk__, __buf__, __sz__, __flags__, __dst__, __dlen__)  {\
     (__ret__) = sendto( (__sk__), (__buf__), (__sz__), (__flags__), (__dst__), (__dlen__)); \
-    spllog(1, "(ret, sk, sz)=(%d, %d, %d)", (__ret__), (__sk__), (__sz__));\
+    spllog(1, "sendto(ret, sk, sz)=(%d, %d, %d)", (__ret__), (__sk__), (__sz__));\
 }
 #endif
 
@@ -356,7 +356,7 @@ int ff_udp_set_remote_addr(URLContext *h, const struct sockaddr *dest_addr, sock
 #define spl_send(__ret__, __sk__, __buf__, __sz__, __flags__)  \
     {\
         (__ret__) = send( (__sk__), (__buf__), (__sz__), (__flags__)); \
-        spllog(1, "(sk, sz, ret)=(%d, %d, %d)", (__sk__), (__sz__), (__ret__));\
+        spllog(1, "send(ret, sk, sz)=(%d, %d, %d)", (__ret__), (__sk__), (__sz__));\
     }
 #endif
 
@@ -364,7 +364,15 @@ int ff_udp_set_remote_addr(URLContext *h, const struct sockaddr *dest_addr, sock
 #define spl_recvfrom(__ret__, __sk__, __buf__, __sz__, __flags__, __src_addr__, __addrlen__)  \
     {\
         (__ret__) = recvfrom( (__sk__), (__buf__), (__sz__), (__flags__), (__src_addr__), (__addrlen__)); \
-        spllog(1, "recvfrom(sk, sz, ret)=(%d, %d, %d)", (__sk__), (__sz__), (__ret__));\
+        spllog(1, "recvfrom(ret, sk, sz)=(%d, %d, %d)", (__ret__), (__sk__), (__sz__));\
+    }
+#endif
+
+#ifndef spl_recv
+#define spl_recv(__ret__, __sk__, __buf__, __sz__, __flags__)  \
+    {\
+        (__ret__) = recv( (__sk__), (__buf__), (__sz__), (__flags__)); \
+        spllog(1, "recv(ret, sk, sz)=(%d, %d, %d)", (__ret__), (__sk__), (__sz__));\
     }
 #endif
 

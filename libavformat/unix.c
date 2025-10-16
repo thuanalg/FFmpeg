@@ -111,7 +111,11 @@ static int unix_read(URLContext *h, uint8_t *buf, int size)
         if (ret < 0)
             return ret;
     }
+#if 0    
     ret = recv(s->fd, buf, size, 0);
+#else
+    spl_recv(ret, s->fd, buf, size, 0);
+#endif    
     if (!ret && s->type == SOCK_STREAM)
         return AVERROR_EOF;
     return ret < 0 ? ff_neterrno() : ret;

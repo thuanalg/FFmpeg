@@ -304,7 +304,11 @@ static int tcp_read(URLContext *h, uint8_t *buf, int size)
         if (ret)
             return ret;
     }
+#if 0    
     ret = recv(s->fd, buf, size, 0);
+#else
+    spl_recv(ret, s->fd, buf, size, 0);    
+#endif    
     if (ret == 0)
         return AVERROR_EOF;
     return ret < 0 ? ff_neterrno() : ret;

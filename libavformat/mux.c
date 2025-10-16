@@ -97,7 +97,8 @@ int avformat_alloc_output_context2(AVFormatContext **avctx, const AVOutputFormat
 {
     AVFormatContext *s = avformat_alloc_context();
     int ret = 0;
-
+    spllog(1, "(format, filename, oformat->name)=(%s, %s, %s)", 
+        format, filename, oformat ? oformat->name : "null");
     *avctx = NULL;
     if (!s)
         goto nomem;
