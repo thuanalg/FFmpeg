@@ -231,7 +231,7 @@ static int get_sockaddr(AVFormatContext *s,
 
     hints.ai_flags = AI_NUMERICHOST;
     if ((ret = getaddrinfo(buf, NULL, &hints, &ai))) {
-        av_log(s, AV_LOG_ERROR, "getaddrinfo(%s): %s\n",
+        spllog( 4, "getaddrinfo(%s): %s\n",
                buf,
                gai_strerror(ret));
         return -1;
@@ -1345,7 +1345,7 @@ start:
     }
 
     if (rt->seq != reply->seq) {
-        av_log(s, AV_LOG_WARNING, "CSeq %d expected, %d received.\n",
+        spllog( 3, "CSeq %d expected, %d received.\n",
             rt->seq, reply->seq);
     }
 
@@ -1476,7 +1476,7 @@ retry:
         goto retry;
 
     if (reply->status_code > 400){
-        av_log(s, AV_LOG_ERROR, "method %s failed: %d%s\n",
+        spllog( 4, "method %s failed: %d%s\n",
                method,
                reply->status_code,
                reply->reason);
@@ -1569,7 +1569,7 @@ int ff_rtsp_make_setup_request(AVFormatContext *s, const char *host, int port,
                 if (!err)
                     goto rtp_opened;
             }
-            av_log(s, AV_LOG_ERROR, "Unable to open an input RTP port\n");
+            spllog( 4, "Unable to open an input RTP port\n");
             err = AVERROR(EIO);
             goto fail;
 
@@ -1670,7 +1670,7 @@ int ff_rtsp_make_setup_request(AVFormatContext *s, const char *host, int port,
         /* Fail if the server responded with another lower transport mode
          * than what we requested. */
         if (reply->transports[0].lower_transport != lower_transport) {
-            av_log(s, AV_LOG_ERROR, "Nonmatching transport in server reply\n");
+            spllog( 4, "Nonmatching transport in server reply\n");
             err = AVERROR_INVALIDDATA;
             goto fail;
         }
@@ -1774,7 +1774,7 @@ int ff_rtsp_connect(AVFormatContext *s)
     socklen_t peer_len = sizeof(peer);
 
     if (rt->rtp_port_max < rt->rtp_port_min) {
-        av_log(s, AV_LOG_ERROR, "Invalid UDP port range, max port %d less "
+        spllog( 4, "Invalid UDP port range, max port %d less "
                                 "than min port %d\n", rt->rtp_port_max,
                                                       rt->rtp_port_min);
         return AVERROR(EINVAL);
@@ -1827,7 +1827,7 @@ redirect:
         lower_transport_mask &= (1 << RTSP_LOWER_TRANSPORT_UDP) |
                                 (1 << RTSP_LOWER_TRANSPORT_TCP);
         if (!lower_transport_mask || rt->control_transport == RTSP_MODE_TUNNEL) {
-            av_log(s, AV_LOG_ERROR, "Unsupported lower transport method, "
+            spllog( 4, "Unsupported lower transport method, "
                                     "only UDP and TCP are supported for output.\n");
             err = AVERROR(EINVAL);
             goto fail;
@@ -2128,11 +2128,11 @@ static int udp_read_packet(AVFormatContext *s, RTSPStream **prtsp_st,
             if (rtsp_st->rtp_handle) {
                 if (ret = ffurl_get_multi_file_handle(rtsp_st->rtp_handle,
                                                       &fds, &fdsnum)) {
-                    av_log(s, AV_LOG_ERROR, "Unable to recover rtp ports\n");
+                    spllog( 4, "Unable to recover rtp ports\n");
                     return ret;
                 }
                 if (fdsnum != 2) {
-                    av_log(s, AV_LOG_ERROR,
+                    spllog( 4,
                            "Number of fds %d not supported\n", fdsnum);
                     av_freep(&fds);
                     return AVERROR_INVALIDDATA;
@@ -2207,7 +2207,7 @@ static int pick_stream(AVFormatContext *s, RTSPStream **rtsp_st,
                     no_ssrc = 1;
             }
             if (no_ssrc) {
-                av_log(s, AV_LOG_WARNING,
+                spllog( 3,
                        "Unable to pick stream for packet - SSRC not known for "
                        "all streams\n");
                 return AVERROR(EAGAIN);
@@ -2221,7 +2221,7 @@ static int pick_stream(AVFormatContext *s, RTSPStream **rtsp_st,
             }
         }
     }
-    av_log(s, AV_LOG_WARNING, "Unable to pick stream for packet\n");
+    spllog( 3, "Unable to pick stream for packet\n");
     return AVERROR(EAGAIN);
 }
 
@@ -2330,7 +2330,7 @@ redo:
     len = read_packet(s, &rtsp_st, first_queue_st, wait_end);
     if (len == AVERROR(EAGAIN) && first_queue_st &&
         rt->transport == RTSP_TRANSPORT_RTP) {
-        av_log(s, AV_LOG_WARNING,
+        spllog( 3,
                 "max delay reached. need to consume packet\n");
         rtsp_st = first_queue_st;
         ret = ff_rtp_parse_packet(rtsp_st->transport_priv, pkt, NULL, 0);
@@ -2493,7 +2493,7 @@ static int sdp_read_header(AVFormatContext *s)
                               sizeof(rtsp_st->sdp_ip),
                               namebuf, sizeof(namebuf), NULL, 0, NI_NUMERICHOST);
             if (err) {
-                av_log(s, AV_LOG_ERROR, "getnameinfo: %s\n", gai_strerror(err));
+                spllog( 4, "getnameinfo: %s\n", gai_strerror(err));
                 err = AVERROR(EIO);
                 av_dict_free(&opts);
                 goto fail;
@@ -2603,12 +2603,12 @@ static int rtp_read_header(AVFormatContext *s)
         if (ret < 0)
             goto fail;
         if (ret < 12) {
-            av_log(s, AV_LOG_WARNING, "Received too short packet\n");
+            spllog( 3, "Received too short packet\n");
             continue;
         }
 
         if ((recvbuf[0] & 0xc0) != 0x80) {
-            av_log(s, AV_LOG_WARNING, "Unsupported RTP version packet "
+            spllog( 3, "Unsupported RTP version packet "
                                       "received\n");
             continue;
         }
@@ -2629,14 +2629,14 @@ static int rtp_read_header(AVFormatContext *s)
     }
 
     if (ff_rtp_get_codec_info(par, payload_type)) {
-        av_log(s, AV_LOG_ERROR, "Unable to receive RTP payload type %d "
+        spllog( 4, "Unable to receive RTP payload type %d "
                                 "without an SDP file describing it\n",
-                                 payload_type);
+                                 payload_type);                              
         ret = AVERROR_INVALIDDATA;
         goto fail;
     }
     if (par->codec_type != AVMEDIA_TYPE_DATA) {
-        av_log(s, AV_LOG_WARNING, "Guessing on RTP content - if not received "
+        spllog( 3, "Guessing on RTP content - if not received "
                                   "properly you need an SDP file "
                                   "describing it\n");
     }
@@ -2693,7 +2693,7 @@ static int rtp_read_header(AVFormatContext *s)
 
 fail_nobuf:
     ret = AVERROR(ENOMEM);
-    av_log(s, AV_LOG_ERROR, "rtp_read_header(): not enough buffer space for sdp-headers\n");
+    spllog( 4, "rtp_read_header(): not enough buffer space for sdp-headers\n");
     av_bprint_finalize(&sdp, NULL);
 fail:
     avcodec_parameters_free(&par);

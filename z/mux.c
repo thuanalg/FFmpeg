@@ -55,6 +55,8 @@
 /*+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+*/
 int count_frame = 0;
 int count_frame_audio = 0;
+int frame_limitation = NUMBER_FRAMES;
+#define FFWR_DURATION_FMT       "--dur=%d"
 /*+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+*/
 
 // a wrapper around a single output AVStream
@@ -584,7 +586,7 @@ static AVFrame *get_audio_frame(OutputStream *ost)
     result = (av_compare_ts(ost->next_pts, ost->enc->time_base,
                       STREAM_DURATION, (AVRational){ 1, 1 }) > 0);
 #else
-    result = (count_frame > NUMBER_FRAMES);
+    result = (count_frame > frame_limitation);
 #endif                      
     if (result)
         return NULL;
@@ -857,7 +859,7 @@ static AVFrame *get_video_frame(OutputStream *ost)
     result = (av_compare_ts(ost->next_pts, c->time_base,
                       STREAM_DURATION, (AVRational){ 1, 1 }) > 0);
 #else
-    result = (count_frame > NUMBER_FRAMES);
+    result = (count_frame > frame_limitation);
 #endif                      
     if (result)
         return NULL;
@@ -956,6 +958,10 @@ int main(int argc, char **argv)
                "\n", argv[0]);
         return 1;
     }
+    if(argc > 2) {
+        sscanf(argv[2], FFWR_DURATION_FMT, &frame_limitation);
+        frame_limitation *= STREAM_FRAME_RATE;
+    }
 
     filename = argv[1];
     for (i = 2; i+1 < argc; i+=2) {
@@ -964,8 +970,8 @@ int main(int argc, char **argv)
     }
 
     /* allocate the output media context */
-    avformat_alloc_output_context2(&oc, NULL, 0, filename);
-    ret = avformat_alloc_output_context2(&oc, NULL, "mpegts", NULL);
+    ret = avformat_alloc_output_context2(&oc, NULL, 0, filename);
+    //ret = avformat_alloc_output_context2(&oc, NULL, "mpegts", NULL);
     //ret = avio_open2(&oc->pb, "udp://127.0.0.1:1234?pkt_size=1316", AVIO_FLAG_WRITE, NULL, NULL);
     if (!oc) {
         printf("Could not deduce output format from file extension: using MPEG.\n");
@@ -980,7 +986,7 @@ int main(int argc, char **argv)
      * and initialize the codecs. */
     if (fmt->video_codec != AV_CODEC_ID_NONE) {
         //add_stream(&video_st, oc, &video_codec, fmt->video_codec);//AV_CODEC_ID_H264, AV_CODEC_ID_HEVC
-        add_stream(&video_st, oc, &video_codec, AV_CODEC_ID_H264);
+        add_stream(&video_st, oc, &video_codec, AV_CODEC_ID_HEVC);
         //add_stream(&video_st, oc, &video_codec, AV_CODEC_ID_AV1);
         have_video = 1;
         encode_video = 1;
@@ -1007,8 +1013,8 @@ int main(int argc, char **argv)
 
     /* open the output file, if needed */
     if (!(fmt->flags & AVFMT_NOFILE)) {
-        //ret = avio_open(&oc->pb, filename, AVIO_FLAG_WRITE);
-        ret = avio_open2(&oc->pb, "tcp://127.0.0.1:12345?pkt_size=1316", AVIO_FLAG_WRITE, NULL, NULL);
+        ret = avio_open(&oc->pb, filename, AVIO_FLAG_WRITE);
+        //ret = avio_open2(&oc->pb, "tcp://127.0.0.1:12345?pkt_size=1316", AVIO_FLAG_WRITE, NULL, NULL);
         if (ret < 0) {
             fprintf(stderr, "Could not open '%s': %s\n", filename,
                     av_err2str(ret));
@@ -1026,7 +1032,7 @@ int main(int argc, char **argv)
 
     while (encode_video || encode_audio) {
         /* select the stream to encode */
-        if(count_frame > NUMBER_FRAMES) {
+        if(count_frame > frame_limitation) {
             avcodec_send_frame(video_st.enc, 0);
             avcodec_send_frame(audio_st.enc, 0);
             break;
