@@ -351,7 +351,6 @@ void *demux_routine(void *arg) {
     return 0;
 }
 int get_buff_size(ffwr_gen_data_st **dst, AVFrame *src) {
-//int get_buff_size(FFWR_AvFrame *dst, AVFrame *src) {
     FFWR_AvFrame *p = 0;
     int ret = 0;
     int len = 0;
@@ -406,16 +405,20 @@ int get_buff_size(ffwr_gen_data_st **dst, AVFrame *src) {
             tmp->type = FFWR_FRAME;
             p->total = len + sizeof(FFWR_FRAME);
             i = 0;
-            while(src->linesize[i] && i < 8) 
+            while(src->linesize[i] && i < AV_NUM_DATA_POINTERS) 
             {
                 p->linesize[i] = src->linesize[i];
                 k = (i == 0) ? src->linesize[i] : (src->linesize[i]/2);
                 k *= src->height;
                 p->len[i] = k;               
-                memcpy( p->data, src->data[i], p->len[i]);
+                memcpy( p->data + t, src->data[i], p->len[i]);
                 t += p->len[i];
                 ++i;
             }   
+            while(i < AV_NUM_DATA_POINTERS) {
+                p->linesize[i] = 0;
+                ++i;
+            }
             *dst = tmp;         
             break;
         }
