@@ -233,7 +233,7 @@ int avformat_open_input(AVFormatContext **ps, const char *filename,
     fci = ff_fc_internal(s);
     si = &fci->fc;
     if (!s->av_class) {
-        av_log(NULL, AV_LOG_ERROR, "Input context has not been properly allocated by avformat_alloc_context() and is not NULL either\n");
+        spllog( 4, "Input context has not been properly allocated by avformat_alloc_context() and is not NULL either\n");
         return AVERROR(EINVAL);
     }
     if (fmt)
@@ -274,7 +274,7 @@ int avformat_open_input(AVFormatContext **ps, const char *filename,
     }
 
     if (s->format_whitelist && av_match_list(s->iformat->name, s->format_whitelist, ',') <= 0) {
-        av_log(s, AV_LOG_ERROR, "Format not on whitelist \'%s\'\n", s->format_whitelist);
+        spllog( 4, "Format not on whitelist \'%s\'\n", s->format_whitelist);
         ret = AVERROR(EINVAL);
         goto fail;
     }
@@ -320,7 +320,7 @@ int avformat_open_input(AVFormatContext **ps, const char *filename,
         s->metadata    = si->id3v2_meta;
         si->id3v2_meta = NULL;
     } else if (si->id3v2_meta) {
-        av_log(s, AV_LOG_WARNING, "Discarding ID3 tags because more suitable tags were found.\n");
+        spllog( 3, "Discarding ID3 tags because more suitable tags were found.\n");
         av_dict_free(&si->id3v2_meta);
     }
 
@@ -1538,7 +1538,7 @@ int av_read_frame(AVFormatContext *s, AVPacket *pkt)
     int eof = 0;
     int ret = 0;
     AVStream *st = 0;
-
+#if 0
     spllog(0, "fctx: 0x%p, ptk: 0x%p, t_index: %d"
         ", name (acodec, vcodec) : (%s, %s)", 
         s, 
@@ -1547,7 +1547,7 @@ int av_read_frame(AVFormatContext *s, AVPacket *pkt)
         s->audio_codec ? (s->audio_codec->name ? s->audio_codec->name : "-") : "-",
         s->video_codec ? (s->video_codec->name ? s->video_codec->name : "-") : "-"
     );
-
+#endif
     if (!genpts) {
         ret = si->packet_buffer.head
               ? avpriv_packet_list_get(&si->packet_buffer, pkt)
@@ -1631,7 +1631,7 @@ return_packet:
         pkt->dts -= RELATIVE_TS_BASE;
     if (is_relative(pkt->pts))
         pkt->pts -= RELATIVE_TS_BASE;
-
+#if 0
     spllog(1, "fctx: 0x%p, ptk: 0x%p, t_index: %d"
         ", name (acodec, vcodec) : (%s, %s), szpkt: %d", 
         s, 
@@ -1641,7 +1641,8 @@ return_packet:
         s->video_codec ? (s->video_codec->name ? s->video_codec->name : "-") : "-",
         pkt ? pkt->size : -1
     );
-
+#endif    
+    spl_avpkt(pkt);
     return ret;
 }
 

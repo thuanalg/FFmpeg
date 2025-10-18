@@ -4,9 +4,11 @@ INC+=-I/usr/local/include -I../
 INC+=-I/mingw64/include/SDL2
 CFLAGS = -O2 -Wall -Wno-incompatible-pointer-types -DEXPORT_DLL_API_FF_WRAPPER 
 LIBS=-L/usr/local/lib
-LIBS+= -lavcodec -lavdevice -lavutil -lavformat -lswscale -lsimplelog -lswresample -lavfilter -L/mingw64/lib/ -lSDL2 -lSDL2main
+#LIBS+= -lavcodec -lavdevice -lavutil -lavformat -lswscale -lsimplelog -lswresample -lavfilter -L/mingw64/lib/ -lSDL2main -lmingw32 -lSDL2 -mwindows
+LIBS+= -lavcodec -lavdevice -lavutil -lavformat -lswscale -lsimplelog -lswresample -lavfilter -L/mingw64/lib/ -lSDL2main -lSDL2
 BSRC=/D/x/algorithms_net/xffmpeg/src/audio_video_record.c
-VK_WSRC=/D/x/algorithms_net/xffmpeg/src/ffwr_vk_windows.c
+#VK_WSRC=/D/x/algorithms_net/xffmpeg/src/ffwr_vk_windows.c
+VK_WSRC=ffwr_vk_windows.c
 LIBTARGET=FFWrapper
 
 
@@ -16,6 +18,7 @@ all:
 #	gcc -g -o audio_video_record $(BSRC) -L./ -l$(LIBTARGET) $(LIBS)
 	#gcc -g -o test-mux  mux.c -L./ $(LIBS) ${INC}
 	gcc -g -o ffwr_vk_windows  ${VK_WSRC} -L./ $(LIBS) ${INC}
+#	gcc -g -o ffwr_vk_windows  ${VK_WSRC} -L./ $(LIBS) ${INC} -Dmain=SDL_main
 
 clean:
 	rm -f *.o *.a *.dll audio_video_record test-mux ffwr_vk_windows

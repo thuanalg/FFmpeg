@@ -911,7 +911,7 @@ static void get_sdl_pix_fmt_and_blendmode(int format, Uint32 *sdl_pix_fmt, SDL_B
 #ifndef spl_SDL_UpdateYUVTexture
     #define spl_SDL_UpdateYUVTexture(__ret__, __0__, __1__, __2__, __3__, __4__, __5__, __6__, __7__) {\
         (__ret__) = SDL_UpdateYUVTexture((__0__), (__1__), (__2__), (__3__), (__4__), (__5__), (__6__), (__7__)); \
-        spllog(1, "linesize[0]: %d", (__3__));\
+        spllog(1, " linesize[0]: %d", (__3__));\
     }
 #endif
 

@@ -32,6 +32,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
+#include <pthread.h>
 
 #include <libavutil/avassert.h>
 #include <libavutil/channel_layout.h>
@@ -80,6 +81,8 @@ typedef struct OutputStream {
     struct SwrContext *swr_ctx;
 } OutputStream;
 
+#ifndef __FFWR_INSTREAM_DEF__
+#define __FFWR_INSTREAM_DEF__
 typedef struct __FFWR_INSTREAM__ {
     AVFormatContext *fmt_ctx;
 
@@ -100,6 +103,7 @@ typedef struct __FFWR_INSTREAM__ {
     SwrContext *a_scale;    
 
 } FFWR_INSTREAM;
+#endif
 
 FFWR_INSTREAM gb_instream;
 FFWR_INSTREAM gb_instream_audio;
@@ -140,19 +144,18 @@ int ffwr_open_input(FFWR_INSTREAM *pinput, char *name, int mode) {
             spllog(4, "--");
             break;
         }
+#if 1    
         iformat = av_find_input_format("dshow");
         if(!iformat) {
             ret = 1;
             spllog(4, "--");
             break;
         }
-
+#endif
 		av_dict_set(&options, "rtbufsize", "50M", 0);       
 
         result = avformat_open_input(&(pinput->fmt_ctx), 
-            "video=Integrated Webcam:"
-            "audio=Microphone (2- Realtek(R) Audio)", 
-            iformat, &options);
+            name,  iformat, &options);
 
         if(result < 0) {
             ret = 1;
