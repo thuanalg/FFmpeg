@@ -21,7 +21,32 @@
 HWND gb_sdlWindow = 0;
 #else
 #endif 
+typedef enum {
+    FFWR_FRAME,
+    FFWR_PACKET,
 
+    FFWR_END
+} FFWR_DATA_TYPE;
+typedef struct __FFWR_GENERIC_DATA__ {
+	int total; /*Total size*/
+	int range; /*Total size*/
+	int pc; /*Point to the current*/
+	int pl; /*Point to the last*/
+    int type;
+	char data[0]; /*Generic data */
+} ffwr_gen_data_st;
+
+typedef struct __FFWR_AvFrame__ {
+    int total;
+    int w;
+    int h;
+    int fmt;
+    int linesize[AV_NUM_DATA_POINTERS];
+    int len[AV_NUM_DATA_POINTERS];
+    uint8_t data[0];
+} FFWR_AvFrame;
+
+int get_buff_size(ffwr_gen_data_st **dst, AVFrame *src);
 
 #ifndef __FFWR_INSTREAM_DEF__
 #define __FFWR_INSTREAM_DEF__
@@ -55,7 +80,6 @@ int ffwr_open_input(FFWR_INSTREAM *pinput, char *name, int mode) {
     int ret = 0;
     int result = 0;
     AVInputFormat *iformat = 0; 
-    
     AVDictionary *options = 0;
     do {
         if(!pinput) {
@@ -106,7 +130,9 @@ int ffwr_open_input(FFWR_INSTREAM *pinput, char *name, int mode) {
             spllog(4, "--");
             break;
         }
-        pinput->v_codec = avcodec_find_decoder(AV_CODEC_ID_RAWVIDEO);
+#if 1        
+        pinput->v_codec = avcodec_find_decoder(
+            pinput->v_st->codecpar->codec_id);
         if(!pinput->v_codec) {
             ret = 1;
             spllog(4, "--");
@@ -129,6 +155,7 @@ int ffwr_open_input(FFWR_INSTREAM *pinput, char *name, int mode) {
             spllog(4, "avcodec_open2, result: %d", result);
 			break;
 		}        
+#endif            
         pinput->vframe = av_frame_alloc(); 
         if(!pinput->vframe) {
             ret = 1;
@@ -146,7 +173,10 @@ int ffwr_open_input(FFWR_INSTREAM *pinput, char *name, int mode) {
             spllog(1, "---");
             break;
         }
-        pinput->a_codec = avcodec_find_decoder(AV_CODEC_ID_PCM_S16LE);
+#if 1        
+        pinput->a_codec = avcodec_find_decoder(
+            pinput->a_st->codecpar->codec_id);
+
         if(!pinput->a_codec) {
             ret = 1;
             spllog(4, "--");
@@ -174,7 +204,8 @@ int ffwr_open_input(FFWR_INSTREAM *pinput, char *name, int mode) {
             ret = 1;
             spllog(4, "--");
             break;
-        }      
+        }   
+#endif               
         pinput->a_dstframe = av_frame_alloc(); 
         if(!pinput->a_dstframe) {
             ret = 1;
@@ -255,7 +286,7 @@ int main (int argc, char *argv[])
                 running = 0;
             }
         }
-		spllog(1, "--");
+		//spllog(1, "--");
         // fill background
         SDL_SetRenderDrawColor(ren, 0, 128, 255, 255); // blue
         SDL_RenderClear(ren);
@@ -272,12 +303,113 @@ int main (int argc, char *argv[])
 FFWR_INSTREAM gb_instream;
 void *demux_routine(void *arg) {
     int ret = 0;
+    int result = 0;
     ret = ffwr_open_input(&gb_instream, 
         "tcp://127.0.0.1:12345", 
         0);
     if(ret) {
         return 0;
     }
+
+    while(1) {
+        av_packet_unref(&(gb_instream.pkt));
+        result = av_read_frame(gb_instream.fmt_ctx, &(gb_instream.pkt)); 
+        if(result) {
+            continue;
+        }
+        if(gb_instream.pkt.stream_index == 0) {
+            result = avcodec_send_packet(gb_instream.v_cctx, &(gb_instream.pkt));
+            if(result < 0) {
+                spllog(1, "v_cctx: 0x%p", gb_instream.v_cctx);
+                break;
+            }
+		    result = avcodec_receive_frame(gb_instream.v_cctx, gb_instream.vframe);
+		    if (result < 0) {
+		    	break;
+		    } 
+            spl_vframe(gb_instream.vframe);
+        }   
+        else if (gb_instream.pkt.stream_index == 1) {
+            result = avcodec_send_packet(gb_instream.a_cctx, &(gb_instream.pkt));
+            if(result < 0) {
+                spllog(1, "v_cctx: 0x%p", gb_instream.a_cctx);
+                break;
+            }
+		    result = avcodec_receive_frame(gb_instream.a_cctx, gb_instream.a_frame);
+		    if (result < 0) {
+		    	break;
+		    }  
+            spl_vframe(gb_instream.a_frame);           
+        }    
+    }
     
     return 0;
+}
+int get_buff_size(ffwr_gen_data_st **dst, AVFrame *src) {
+//int get_buff_size(FFWR_AvFrame *dst, AVFrame *src) {
+    FFWR_AvFrame *p = 0;
+    int ret = 0;
+    int len = 0;
+    int i = 0;
+    int k = 0;
+    ffwr_gen_data_st *tmp = 0;
+    int total = 0;
+    int t = 0;
+    do {
+        if(!src) {
+            ret = 1;
+            break;
+        }
+        if(!dst) {
+            ret = 1;
+            break;
+        }
+        tmp = *dst;
+        if(src->format == 4) {
+            /* AV_PIX_FMT_YUV420P */
+            /* YUV, Y: luminance, U/chrominance: Color (Cr), V/chrominance: Color (Cb)*/
+            while(src->linesize[i]) {
+                k = (i == 0) ? src->linesize[i] : (src->linesize[i]/2);
+                len += src->height * k;
+                ++i;
+            }
+            total = sizeof(ffwr_gen_data_st) + sizeof(FFWR_FRAME);
+            total += len + 1;
+            if(!tmp) {
+                tmp = (ffwr_gen_data_st*) malloc(total);
+                if(!tmp) {
+                    exit(1);
+                }
+                memset(tmp, 0, total);
+                tmp->total = total;
+                tmp->range = total - sizeof(ffwr_gen_data_st);
+                p = (FFWR_AvFrame *) tmp->data;
+            } else {
+                if(tmp->total < total) {
+                    tmp = (ffwr_gen_data_st*) realloc(tmp, total);
+                    if(!tmp) {
+                        exit(1);
+                    }      
+                    tmp->total = total;
+                    tmp->range = total - sizeof(ffwr_gen_data_st);
+                    p = (FFWR_AvFrame *) tmp->data;                                  
+                }
+            }
+            tmp->pc = 0;
+            tmp->pl = sizeof(FFWR_FRAME) + len;
+            tmp->type = FFWR_FRAME;
+            p->total = len + sizeof(FFWR_FRAME);
+            i = 0;
+            while(src->linesize[i] && i < 8) {
+                k = (i == 0) ? src->linesize[i] : (src->linesize[i]/2);
+                k *= src->height;
+                p->len[i] = k;
+                t += p->len[i];
+                memcpy( (p->data + t), src->data[i], p->len[i]);
+                ++i;
+            }            
+            break;
+        }
+    } while(0);
+    return ret;
 }
