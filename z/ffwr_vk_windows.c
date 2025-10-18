@@ -48,7 +48,12 @@ typedef struct __FFWR_AvFrame__ {
     uint8_t data[0];
 } FFWR_AvFrame;
 
+ffwr_gen_data_st *gb_frame;
+ffwr_gen_data_st *planVFrame;
+
 int get_buff_size(ffwr_gen_data_st **dst, AVFrame *src);
+
+pthread_mutex_t gb_FRAME_MTX = PTHREAD_MUTEX_INITIALIZER;
 
 #ifndef __FFWR_INSTREAM_DEF__
 #define __FFWR_INSTREAM_DEF__
@@ -232,6 +237,9 @@ int main (int argc, char *argv[])
 	int running = 1;
 	SDL_Event e = {0};
     pthread_t thread_id = 0;
+    FFWR_AvFrame *p = 0;
+    int frame_ready = 0;
+    SDL_Texture *gb_texture = NULL;
 	
 	char cfgpath[1024] = {0};
 	SPL_INPUT_ARG input = {0};
@@ -290,10 +298,63 @@ int main (int argc, char *argv[])
         }
 		//spllog(1, "--");
         // fill background
+#if 0
         SDL_SetRenderDrawColor(ren, 0, 128, 255, 255); // blue
         SDL_RenderClear(ren);
-
         SDL_RenderPresent(ren);
+#endif
+        pthread_mutex_lock(&gb_FRAME_MTX);
+        do {
+            //get_buff_size(&planVFrame, gb_instream.vframe);
+            if(!planVFrame) {
+                break;
+            }
+            p = (FFWR_AvFrame *)planVFrame->data;
+            if(!p->total) {
+                break;
+            }
+            if(!gb_frame) {
+                gb_frame = malloc(planVFrame->total);
+            }
+            if(!gb_frame) {
+                break;
+            }
+            frame_ready = 1;
+            memcpy(gb_frame, planVFrame, planVFrame->total);
+            p->total = 0;
+        } while(0);
+        pthread_mutex_unlock(&gb_FRAME_MTX);
+#if 1
+        if (frame_ready) {
+
+            if(!gb_texture) {
+                gb_texture = SDL_CreateTexture( ren,
+                    SDL_PIXELFORMAT_IYUV,
+                    SDL_TEXTUREACCESS_STREAMING,
+                    p->w,
+                    p->h);
+            }
+            if(!gb_texture) {
+                exit(1);
+            }
+            p = (FFWR_AvFrame *)gb_frame->data;
+            SDL_UpdateYUVTexture(
+                gb_texture,
+                NULL,
+                p->data, p->linesize[0],
+                p->data + p->len[0], p->linesize[1],
+                p->data + p->len[1], p->linesize[2]
+            );
+
+            SDL_RenderClear(ren);
+            SDL_RenderCopy(ren, gb_texture, NULL, NULL);
+            SDL_RenderPresent(ren);
+
+            frame_ready = 0;
+        } else {
+            SDL_Delay(10);
+        }
+#endif        
     }
 
     SDL_DestroyRenderer(ren);
@@ -306,7 +367,7 @@ FFWR_INSTREAM gb_instream;
 void *demux_routine(void *arg) {
     int ret = 0;
     int result = 0;
-    ffwr_gen_data_st *planVFrame = 0;
+    
     ret = ffwr_open_input(&gb_instream, 
         "tcp://127.0.0.1:12345", 
         0);
@@ -331,7 +392,11 @@ void *demux_routine(void *arg) {
 		    if (result < 0) {
 		    	break;
 		    } 
-            get_buff_size(&planVFrame, gb_instream.vframe);
+            pthread_mutex_lock(&gb_FRAME_MTX);
+            do {
+                get_buff_size(&planVFrame, gb_instream.vframe);
+            } while(0);
+            pthread_mutex_unlock(&gb_FRAME_MTX);
             spl_vframe(gb_instream.vframe);
         }   
         else if (gb_instream.pkt.stream_index == 1) {
@@ -404,7 +469,10 @@ int get_buff_size(ffwr_gen_data_st **dst, AVFrame *src) {
             tmp->pl = sizeof(FFWR_FRAME) + len;
             tmp->type = FFWR_FRAME;
             p->total = len + sizeof(FFWR_FRAME);
+            p->w = src->width;
+            p->h = src->height;
             i = 0;
+            
             while(src->linesize[i] && i < AV_NUM_DATA_POINTERS) 
             {
                 p->linesize[i] = src->linesize[i];
@@ -425,3 +493,23 @@ int get_buff_size(ffwr_gen_data_st **dst, AVFrame *src) {
     } while(0);
     return ret;
 }
+
+#if 0
+    if (frame_ready) {
+        SDL_UpdateYUVTexture(
+            texture,
+            NULL,
+            frame->data[0], frame->linesize[0],
+            frame->data[1], frame->linesize[1],
+            frame->data[2], frame->linesize[2]
+        );
+
+        SDL_RenderClear(ren);
+        SDL_RenderCopy(ren, texture, NULL, NULL);
+        SDL_RenderPresent(ren);
+
+        frame_ready = 0;
+    } else {
+        SDL_Delay(10);
+    }
+#endif
