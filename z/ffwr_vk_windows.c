@@ -16,6 +16,8 @@
 #include <libavformat/avformat.h>
 #include <pthread.h>
 
+#define PADDING_MEMORY  1024
+
 #ifndef UNIX_LINUX
 #include <windows.h>
 HWND gb_sdlWindow = 0;
@@ -304,12 +306,14 @@ FFWR_INSTREAM gb_instream;
 void *demux_routine(void *arg) {
     int ret = 0;
     int result = 0;
+    ffwr_gen_data_st *planVFrame = 0;
     ret = ffwr_open_input(&gb_instream, 
         "tcp://127.0.0.1:12345", 
         0);
     if(ret) {
         return 0;
     }
+
 
     while(1) {
         av_packet_unref(&(gb_instream.pkt));
@@ -327,6 +331,7 @@ void *demux_routine(void *arg) {
 		    if (result < 0) {
 		    	break;
 		    } 
+            get_buff_size(&planVFrame, gb_instream.vframe);
             spl_vframe(gb_instream.vframe);
         }   
         else if (gb_instream.pkt.stream_index == 1) {
@@ -374,7 +379,7 @@ int get_buff_size(ffwr_gen_data_st **dst, AVFrame *src) {
                 ++i;
             }
             total = sizeof(ffwr_gen_data_st) + sizeof(FFWR_FRAME);
-            total += len + 1;
+            total += len + PADDING_MEMORY;
             if(!tmp) {
                 tmp = (ffwr_gen_data_st*) malloc(total);
                 if(!tmp) {
@@ -383,7 +388,7 @@ int get_buff_size(ffwr_gen_data_st **dst, AVFrame *src) {
                 memset(tmp, 0, total);
                 tmp->total = total;
                 tmp->range = total - sizeof(ffwr_gen_data_st);
-                p = (FFWR_AvFrame *) tmp->data;
+                //p = (FFWR_AvFrame *) tmp->data;
             } else {
                 if(tmp->total < total) {
                     tmp = (ffwr_gen_data_st*) realloc(tmp, total);
@@ -392,22 +397,26 @@ int get_buff_size(ffwr_gen_data_st **dst, AVFrame *src) {
                     }      
                     tmp->total = total;
                     tmp->range = total - sizeof(ffwr_gen_data_st);
-                    p = (FFWR_AvFrame *) tmp->data;                                  
+                    //p = (FFWR_AvFrame *) tmp->data;                                  
                 }
             }
+            p = (FFWR_AvFrame *) tmp->data;  
             tmp->pc = 0;
             tmp->pl = sizeof(FFWR_FRAME) + len;
             tmp->type = FFWR_FRAME;
             p->total = len + sizeof(FFWR_FRAME);
             i = 0;
-            while(src->linesize[i] && i < 8) {
+            while(src->linesize[i] && i < 8) 
+            {
+                p->linesize[i] = src->linesize[i];
                 k = (i == 0) ? src->linesize[i] : (src->linesize[i]/2);
                 k *= src->height;
-                p->len[i] = k;
+                p->len[i] = k;               
+                memcpy( p->data, src->data[i], p->len[i]);
                 t += p->len[i];
-                memcpy( (p->data + t), src->data[i], p->len[i]);
                 ++i;
-            }            
+            }   
+            *dst = tmp;         
             break;
         }
     } while(0);
