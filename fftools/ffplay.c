@@ -840,6 +840,7 @@ static int realloc_texture(SDL_Texture **texture, Uint32 new_format, int new_wid
     if (!*texture || SDL_QueryTexture(*texture, &format, &access, &w, &h) < 0 || new_width != w || new_height != h || new_format != format) {
         void *pixels;
         int pitch;
+        spllog(1, "realloc_texture");
         if (*texture)
             SDL_DestroyTexture(*texture);
         if (!(*texture = SDL_CreateTexture(renderer, new_format, SDL_TEXTUREACCESS_STREAMING, new_width, new_height)))
@@ -904,14 +905,14 @@ static void get_sdl_pix_fmt_and_blendmode(int format, Uint32 *sdl_pix_fmt, SDL_B
 #ifndef spl_SDL_UpdateTexture
     #define spl_SDL_UpdateTexture(__ret__, __0__, __1__, __2__, __3__) {\
         (__ret__) = SDL_UpdateTexture((__0__), (__1__), (__2__), (__3__)); \
-        spllog(1, "linesize[0]: %d", (__3__));\
+        spllog(1, "SDL_UpdateTexture linesize[0]: %d", (__3__));\
     }
 #endif
 
 #ifndef spl_SDL_UpdateYUVTexture
     #define spl_SDL_UpdateYUVTexture(__ret__, __0__, __1__, __2__, __3__, __4__, __5__, __6__, __7__) {\
         (__ret__) = SDL_UpdateYUVTexture((__0__), (__1__), (__2__), (__3__), (__4__), (__5__), (__6__), (__7__)); \
-        spllog(1, " linesize[0]: %d", (__3__));\
+        spllog(1, "SDL_UpdateYUVTexture linesize[0]: %d", (__3__));\
     }
 #endif
 
@@ -941,6 +942,7 @@ static int upload_texture(SDL_Texture **tex, AVFrame *frame)
             }
 #else
             if (frame->linesize[0] > 0 && frame->linesize[1] > 0 && frame->linesize[2] > 0) {
+                spl_vframe(frame);
                 spl_SDL_UpdateYUVTexture(ret, *tex, NULL, 
                     frame->data[0], frame->linesize[0], 
                     frame->data[1], frame->linesize[1], 
