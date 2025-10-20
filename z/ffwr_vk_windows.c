@@ -43,9 +43,12 @@ typedef struct {
     int type;    
 } FFWR_SIZE_TYPE;
 
+/*
+detect = (void*)((uint8_t*)detect + detect->total)
+*/
+
 typedef struct __FFWR_AvFrame__ {
-    int total;
-    int type;
+    FFWR_SIZE_TYPE tt_sz;
     int w;
     int h;
     int fmt;
@@ -340,7 +343,7 @@ int main (int argc, char *argv[])
                 break;
             }
             p = (FFWR_AvFrame *)planVFrame->data;
-            if(!p->total) {
+            if(!p->tt_sz.total) {
                 break;
             }
             if(!gb_frame) {
@@ -586,8 +589,8 @@ int get_buff_size(ffwr_gen_data_st **dst, AVFrame *src) {
                 }
             }
             p = (FFWR_AvFrame *) (tmp->data + tmp->pl);  
-            p->type = FFWR_FRAME;
-            p->total = len + sizeof(FFWR_FRAME);
+            p->tt_sz.type = FFWR_FRAME;
+            p->tt_sz.total = len + sizeof(FFWR_FRAME);
             p->w = src->width;
             p->h = src->height;
             p->fmt = src->format;
@@ -615,7 +618,7 @@ int get_buff_size(ffwr_gen_data_st **dst, AVFrame *src) {
                 t += len;
                 ++i;
             }   
-            tmp->pl += p->total;
+            tmp->pl += p->tt_sz.total;
             *dst = tmp;         
             break;            
         }
