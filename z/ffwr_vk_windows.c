@@ -35,17 +35,23 @@ typedef struct __FFWR_GENERIC_DATA__ {
 	int range; /*Total size*/
 	int pc; /*Point to the current*/
 	int pl; /*Point to the last*/
-    int type;
 	char data[0]; /*Generic data */
 } ffwr_gen_data_st;
 
+typedef struct {
+    int total;
+    int type;    
+} FFWR_SIZE_TYPE;
+
 typedef struct __FFWR_AvFrame__ {
     int total;
+    int type;
     int w;
     int h;
     int fmt;
+    int pts;
     int linesize[AV_NUM_DATA_POINTERS];
-    int len[AV_NUM_DATA_POINTERS];
+    int len[AV_NUM_DATA_POINTERS];   
     uint8_t data[0];
 } FFWR_AvFrame;
 
@@ -243,7 +249,7 @@ int main (int argc, char *argv[])
 	int running = 1;
 	SDL_Event e = {0};
     pthread_t thread_id = 0;
-    FFWR_AvFrame *p = 0;
+    FFWR_AvFrame *p = 0, *p2 = 0;
     int frame_ready = 0;
     SDL_Texture *gb_texture = NULL;
 	
@@ -342,6 +348,7 @@ int main (int argc, char *argv[])
                 memset(gb_frame, 0, planVFrame->total * 2);
                 gb_frame->total = planVFrame->total * 2;
                 gb_frame->range = gb_frame->total - sizeof(ffwr_gen_data_st);
+                
             } else {
                 if(gb_frame->total < planVFrame->total) {
                     exit(1);
@@ -350,11 +357,15 @@ int main (int argc, char *argv[])
             if(!gb_frame) {
                 break;
             }
-            
-            memcpy(gb_frame->data + gb_frame->pc, p, p->total);
-            gb_frame->pl += p->total;
-            p->total = 0;
-            frame_ready = 1;
+            p2 = (FFWR_AvFrame *)gb_frame->data;
+            if(p->pts > p2->pts) {
+                memcpy(gb_frame->data + gb_frame->pc, 
+                    planVFrame->data + planVFrame->pc, 
+                    planVFrame->pl - planVFrame->pc);
+                gb_frame->pl += (planVFrame->pl - planVFrame->pc);
+                planVFrame->pl = planVFrame->pc = 0;
+                frame_ready = 1;
+            }
 #else            
             //frame_ready = 1;
             //spl_vframe(gb_src_draw);
@@ -390,7 +401,7 @@ int main (int argc, char *argv[])
         if(!gb_texture) {
             exit(1);
         }
-        p = (FFWR_AvFrame *)gb_frame->data;
+        p = (FFWR_AvFrame *)(gb_frame->data + gb_frame->pc);
 #if 1        
         SDL_UpdateYUVTexture( gb_texture, NULL,
             p->data + p->len[0], p->linesize[0],
@@ -553,29 +564,29 @@ int get_buff_size(ffwr_gen_data_st **dst, AVFrame *src) {
             total = sizeof(ffwr_gen_data_st) + sizeof(FFWR_FRAME);
             total += len + PADDING_MEMORY;
             if(!tmp) {
-                tmp = (ffwr_gen_data_st*) malloc(total);
+                int nbe = 10 * total;
+                tmp = (ffwr_gen_data_st*) malloc(nbe);
                 if(!tmp) {
                     exit(1);
                 }
-                memset(tmp, 0, total);
-                tmp->total = total;
-                tmp->range = total - sizeof(ffwr_gen_data_st);
+                memset(tmp, 0, nbe);
+                tmp->total = nbe;
+                tmp->range = nbe - sizeof(ffwr_gen_data_st);
                 //p = (FFWR_AvFrame *) tmp->data;
             } else {
-                if(tmp->total < total) {
-                    tmp = (ffwr_gen_data_st*) realloc(tmp, total);
+                if( (tmp->range - tmp->pl) < total) {
+                    int add = total * 7 + tmp->total;
+                    tmp = (ffwr_gen_data_st*) realloc(tmp, add);
                     if(!tmp) {
                         exit(1);
                     }      
-                    tmp->total = total;
-                    tmp->range = total - sizeof(ffwr_gen_data_st);
+                    tmp->total = add;
+                    tmp->range = add - sizeof(ffwr_gen_data_st);
                     //p = (FFWR_AvFrame *) tmp->data;                                  
                 }
             }
-            p = (FFWR_AvFrame *) tmp->data;  
-            tmp->pc = 0;
-            tmp->pl = sizeof(FFWR_FRAME) + len;
-            tmp->type = FFWR_FRAME;
+            p = (FFWR_AvFrame *) (tmp->data + tmp->pl);  
+            p->type = FFWR_FRAME;
             p->total = len + sizeof(FFWR_FRAME);
             p->w = src->width;
             p->h = src->height;
@@ -586,6 +597,7 @@ int get_buff_size(ffwr_gen_data_st **dst, AVFrame *src) {
             //    p->linesize[i] = 0;
             //    ++i;
             //}
+
             memset(p->linesize, 0, sizeof(p->linesize));
             memset(p->len, 0, sizeof(p->len));
             i = 0;
@@ -603,11 +615,12 @@ int get_buff_size(ffwr_gen_data_st **dst, AVFrame *src) {
                 t += len;
                 ++i;
             }   
-
+            tmp->pl += p->total;
             *dst = tmp;         
             break;            
         }
         if(src->format == 4) {
+#if 0            
             /* AV_PIX_FMT_YUV420P */
             /* YUV, Y: luminance, U/chrominance: Color (Cr), V/chrominance: Color (Cb)*/
             while(src->linesize[i]) {
@@ -663,6 +676,7 @@ int get_buff_size(ffwr_gen_data_st **dst, AVFrame *src) {
             }
             *dst = tmp;         
             break;
+#endif            
         }
     } while(0);
 
