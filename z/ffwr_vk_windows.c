@@ -1,3 +1,5 @@
+
+#include <SDL.h>
 #include <SDL2/SDL_syswm.h>
 #include <stdio.h>
 #include <simplelog.h>
@@ -14,8 +16,6 @@
 #include <libavdevice/avdevice.h>
 #include <libavformat/avformat.h>
 #include <pthread.h>
-#include <SDL.h>
-#include <SDL_thread.h>
 
 #define PADDING_MEMORY  1024
 
@@ -393,9 +393,9 @@ int main (int argc, char *argv[])
         p = (FFWR_AvFrame *)gb_frame->data;
 #if 1        
         SDL_UpdateYUVTexture( gb_texture, NULL,
-            p->data + p->len[0], p->linesize[0],
-            p->data + p->len[1], p->linesize[1],
-            p->data + p->len[2], p->linesize[2]
+            p->data, p->linesize[0],
+             p->data + p->len[0], p->linesize[1],
+            p->data + p->len[1], p->linesize[2]
            
         );
 #else
@@ -516,7 +516,6 @@ void *demux_routine(void *arg) {
     
     return 0;
 }
-#define BUFF_GAP 10
 int get_buff_size(ffwr_gen_data_st **dst, AVFrame *src) {
     FFWR_AvFrame *p = 0;
     int ret = 0;
@@ -524,9 +523,6 @@ int get_buff_size(ffwr_gen_data_st **dst, AVFrame *src) {
     int i = 0;
     int k = 0;
     int m = 0;
-    int k1 = 0;
-    int m1 = 0;
-
     ffwr_gen_data_st *tmp = 0;
     int total = 0;
     int t = 0;
@@ -544,12 +540,13 @@ int get_buff_size(ffwr_gen_data_st **dst, AVFrame *src) {
             /* AV_PIX_FMT_YUV420P */
             /* YUV, Y: luminance, U/chrominance: Color (Cr), V/chrominance: Color (Cb)*/
             while(src->linesize[i]) {
+                //k = src->linesize[i];
+                //m = (i == 0) ? src->height : ((src->height)/2);
 
                 k = src->width;
-                m = src->height;;
-                m += BUFF_GAP;     
-                len += m * k;
+                m = src->height * 2;
 
+                len += m * k;
                 ++i;
             }
             total = sizeof(ffwr_gen_data_st) + sizeof(FFWR_FRAME);
@@ -588,27 +585,22 @@ int get_buff_size(ffwr_gen_data_st **dst, AVFrame *src) {
             //    p->linesize[i] = 0;
             //    ++i;
             //}
-
             memset(p->linesize, 0, sizeof(p->linesize));
             memset(p->len, 0, sizeof(p->len));
             i = 0;
-            t = 0;
-            len = 0;
             while(src->linesize[i] && i < AV_NUM_DATA_POINTERS) 
             {
-                p->len[i] = t;
-
-                k1 = src->linesize[i];
-                m1 = (i == 0) ? (src->height) : ((src->height + 1)/2);
+                p->linesize[i] = src->linesize[i];
+                int k1 = src->linesize[i];
+                int m1 = (i == 0) ? src->height : ((src->height)/2);
 
                 k = src->width;
-                m = src->height;;
-                m += BUFF_GAP;     
-                len = m * k;
+                m = src->height *  2;
+
+                p->len[i] = k * m;    
 
                 memcpy( p->data + t, src->data[i], k1 * m1);
-                t += len;
-
+                t += p->len[i];
                 ++i;
             }   
 
