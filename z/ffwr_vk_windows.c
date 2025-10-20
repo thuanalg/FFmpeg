@@ -746,6 +746,7 @@ convert_frame(AVFrame *src, AVFrame *dst)
         dst->data,
         dst->linesize
     );
+    dst->pts = src->pts;
 
     return 0;
 }
