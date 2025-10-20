@@ -44,7 +44,14 @@ typedef struct {
 } FFWR_SIZE_TYPE;
 
 /*
-detect = (void*)((uint8_t*)detect + detect->total)
+FFWR_SIZE_TYPE *detect = 0;
+detect = (FFWR_SIZE_TYPE *) gen->data;
+int count = 0;
+count = detect->total;
+while(count < gen->pl) {
+    detect = (FFWR_SIZE_TYPE*)((char*)detect + detect->total);
+    count += detect->total;
+}
 */
 
 typedef struct __FFWR_AvFrame__ {
