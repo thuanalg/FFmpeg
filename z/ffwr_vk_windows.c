@@ -1,4 +1,3 @@
-#include <SDL.h>
 #include <SDL2/SDL_syswm.h>
 #include <stdio.h>
 #include <simplelog.h>
@@ -15,6 +14,8 @@
 #include <libavdevice/avdevice.h>
 #include <libavformat/avformat.h>
 #include <pthread.h>
+#include <SDL.h>
+#include <SDL_thread.h>
 
 #define PADDING_MEMORY  1024
 
@@ -276,7 +277,7 @@ int main (int argc, char *argv[])
         SDL_WINDOWPOS_UNDEFINED,   // y
         640,                      // width
         480,                      // height
-        SDL_WINDOW_SHOWN           // flags
+        SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE          // flags
     );
 	SDL_GetWindowWMInfo(win, &info);
 	gb_sdlWindow = info.info.win.window;
@@ -328,7 +329,7 @@ int main (int argc, char *argv[])
 #endif
         pthread_mutex_lock(&gb_FRAME_MTX);
         do {
-#if 0            
+#if 1            
             if(!planVFrame) {
                 break;
             }
@@ -353,7 +354,8 @@ int main (int argc, char *argv[])
             memcpy(gb_frame->data + gb_frame->pc, p, p->total);
             gb_frame->pl += p->total;
             p->total = 0;
-#endif            
+            frame_ready = 1;
+#else            
             //frame_ready = 1;
             //spl_vframe(gb_src_draw);
             //spl_vframe(gb_dst_draw);
@@ -368,6 +370,7 @@ int main (int argc, char *argv[])
                     gb_dst_draw->pts = gb_src_draw->pts;
                 //}
             }
+#endif            
         } while(0);
 
         pthread_mutex_unlock(&gb_FRAME_MTX);
@@ -387,12 +390,13 @@ int main (int argc, char *argv[])
         if(!gb_texture) {
             exit(1);
         }
-        //p = (FFWR_AvFrame *)gb_frame->data;
-#if 0        
+        p = (FFWR_AvFrame *)gb_frame->data;
+#if 1        
         SDL_UpdateYUVTexture( gb_texture, NULL,
-            p->data, p->linesize[0],
-            p->data + p->len[0], p->linesize[1],
-            p->data + p->len[1], p->linesize[2]
+            p->data + p->len[0], p->linesize[0],
+            p->data + p->len[1], p->linesize[1],
+            p->data + p->len[2], p->linesize[2]
+           
         );
 #else
         //set_sdl_yuv_conversion_mode(gb_dst_draw);
@@ -478,7 +482,9 @@ void *demux_routine(void *arg) {
             //av_frame_copy(gb_instream.vframe, tmp);
             //av_frame_copy_props(gb_instream.vframe, tmp);    
             convert_frame(tmp, gb_instream.vframe);
-            av_frame_copy_props(gb_instream.vframe, tmp);     
+
+            //av_frame_copy_props(gb_instream.vframe, tmp);    
+
             spl_vframe(gb_instream.vframe);
             pthread_mutex_lock(&gb_FRAME_MTX);
             do {
@@ -487,8 +493,8 @@ void *demux_routine(void *arg) {
                 }
                 get_buff_size(&planVFrame, gb_instream.vframe);
 
-                av_frame_copy(gb_src_draw, gb_instream.vframe);
-                av_frame_copy_props(gb_src_draw, gb_instream.vframe);
+                //av_frame_copy(gb_src_draw, gb_instream.vframe);
+                //av_frame_copy_props(gb_src_draw, gb_instream.vframe);
                 //gb_src_draw->pts = gb_instream.vframe->pts;
             } while(0);
             pthread_mutex_unlock(&gb_FRAME_MTX);
@@ -510,12 +516,17 @@ void *demux_routine(void *arg) {
     
     return 0;
 }
+#define BUFF_GAP 10
 int get_buff_size(ffwr_gen_data_st **dst, AVFrame *src) {
     FFWR_AvFrame *p = 0;
     int ret = 0;
     int len = 0;
     int i = 0;
     int k = 0;
+    int m = 0;
+    int k1 = 0;
+    int m1 = 0;
+
     ffwr_gen_data_st *tmp = 0;
     int total = 0;
     int t = 0;
@@ -529,6 +540,81 @@ int get_buff_size(ffwr_gen_data_st **dst, AVFrame *src) {
             break;
         }
         tmp = *dst;
+        if(src->format == 0) {
+            /* AV_PIX_FMT_YUV420P */
+            /* YUV, Y: luminance, U/chrominance: Color (Cr), V/chrominance: Color (Cb)*/
+            while(src->linesize[i]) {
+
+                k = src->width;
+                m = src->height;;
+                m += BUFF_GAP;     
+                len += m * k;
+
+                ++i;
+            }
+            total = sizeof(ffwr_gen_data_st) + sizeof(FFWR_FRAME);
+            total += len + PADDING_MEMORY;
+            if(!tmp) {
+                tmp = (ffwr_gen_data_st*) malloc(total);
+                if(!tmp) {
+                    exit(1);
+                }
+                memset(tmp, 0, total);
+                tmp->total = total;
+                tmp->range = total - sizeof(ffwr_gen_data_st);
+                //p = (FFWR_AvFrame *) tmp->data;
+            } else {
+                if(tmp->total < total) {
+                    tmp = (ffwr_gen_data_st*) realloc(tmp, total);
+                    if(!tmp) {
+                        exit(1);
+                    }      
+                    tmp->total = total;
+                    tmp->range = total - sizeof(ffwr_gen_data_st);
+                    //p = (FFWR_AvFrame *) tmp->data;                                  
+                }
+            }
+            p = (FFWR_AvFrame *) tmp->data;  
+            tmp->pc = 0;
+            tmp->pl = sizeof(FFWR_FRAME) + len;
+            tmp->type = FFWR_FRAME;
+            p->total = len + sizeof(FFWR_FRAME);
+            p->w = src->width;
+            p->h = src->height;
+            p->fmt = src->format;
+           
+            //av_get_pix_fmt_name(p->fmt);
+            //while(i < AV_NUM_DATA_POINTERS) {
+            //    p->linesize[i] = 0;
+            //    ++i;
+            //}
+
+            memset(p->linesize, 0, sizeof(p->linesize));
+            memset(p->len, 0, sizeof(p->len));
+            i = 0;
+            t = 0;
+            len = 0;
+            while(src->linesize[i] && i < AV_NUM_DATA_POINTERS) 
+            {
+                p->len[i] = t;
+
+                k1 = src->linesize[i];
+                m1 = (i == 0) ? (src->height) : ((src->height + 1)/2);
+
+                k = src->width;
+                m = src->height;;
+                m += BUFF_GAP;     
+                len = m * k;
+
+                memcpy( p->data + t, src->data[i], k1 * m1);
+                t += len;
+
+                ++i;
+            }   
+
+            *dst = tmp;         
+            break;            
+        }
         if(src->format == 4) {
             /* AV_PIX_FMT_YUV420P */
             /* YUV, Y: luminance, U/chrominance: Color (Cr), V/chrominance: Color (Cb)*/
