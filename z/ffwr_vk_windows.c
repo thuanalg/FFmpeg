@@ -393,8 +393,8 @@ int main (int argc, char *argv[])
         p = (FFWR_AvFrame *)gb_frame->data;
 #if 1        
         SDL_UpdateYUVTexture( gb_texture, NULL,
-            p->data, p->linesize[0],
-             p->data + p->len[1], p->linesize[1],
+            p->data + p->len[0], p->linesize[0],
+            p->data + p->len[1], p->linesize[1],
             p->data + p->len[2], p->linesize[2]
            
         );
@@ -499,6 +499,8 @@ void *demux_routine(void *arg) {
             } while(0);
             pthread_mutex_unlock(&gb_FRAME_MTX);
             //spl_vframe(gb_instream.vframe);
+            av_frame_unref(tmp);
+            av_frame_unref(gb_instream.vframe);
         }   
         else if (gb_instream.pkt.stream_index == 1) {
             result = avcodec_send_packet(gb_instream.a_cctx, &(gb_instream.pkt));
@@ -510,7 +512,8 @@ void *demux_routine(void *arg) {
 		    if (result < 0) {
 		    	break;
 		    }  
-            //spl_vframe(gb_instream.a_frame);           
+            //spl_vframe(gb_instream.a_frame); 
+            av_frame_unref(gb_instream.a_frame);          
         }    
     }
     
