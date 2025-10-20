@@ -394,8 +394,8 @@ int main (int argc, char *argv[])
 #if 1        
         SDL_UpdateYUVTexture( gb_texture, NULL,
             p->data, p->linesize[0],
-             p->data + p->len[0], p->linesize[1],
-            p->data + p->len[1], p->linesize[2]
+             p->data + p->len[1], p->linesize[1],
+            p->data + p->len[2], p->linesize[2]
            
         );
 #else
@@ -516,6 +516,7 @@ void *demux_routine(void *arg) {
     
     return 0;
 }
+#define MEMORY_PADDING   1
 int get_buff_size(ffwr_gen_data_st **dst, AVFrame *src) {
     FFWR_AvFrame *p = 0;
     int ret = 0;
@@ -526,6 +527,7 @@ int get_buff_size(ffwr_gen_data_st **dst, AVFrame *src) {
     ffwr_gen_data_st *tmp = 0;
     int total = 0;
     int t = 0;
+
     do {
         if(!src) {
             ret = 1;
@@ -540,13 +542,9 @@ int get_buff_size(ffwr_gen_data_st **dst, AVFrame *src) {
             /* AV_PIX_FMT_YUV420P */
             /* YUV, Y: luminance, U/chrominance: Color (Cr), V/chrominance: Color (Cb)*/
             while(src->linesize[i]) {
-                //k = src->linesize[i];
-                //m = (i == 0) ? src->height : ((src->height)/2);
-
-                k = src->width;
-                m = src->height * 2;
-
-                len += m * k;
+                k = src->linesize[i];
+                m = (i == 0) ? src->height : ((src->height)/2);
+                len += k * (m + MEMORY_PADDING);
                 ++i;
             }
             total = sizeof(ffwr_gen_data_st) + sizeof(FFWR_FRAME);
@@ -588,19 +586,18 @@ int get_buff_size(ffwr_gen_data_st **dst, AVFrame *src) {
             memset(p->linesize, 0, sizeof(p->linesize));
             memset(p->len, 0, sizeof(p->len));
             i = 0;
+            len = 0;
             while(src->linesize[i] && i < AV_NUM_DATA_POINTERS) 
             {
+                p->len[i] = t;
                 p->linesize[i] = src->linesize[i];
-                int k1 = src->linesize[i];
-                int m1 = (i == 0) ? src->height : ((src->height)/2);
 
-                k = src->width;
-                m = src->height *  2;
+                k = src->linesize[i];
+                m = (i == 0) ? src->height : ((src->height)/2);
+                len = k * (m + MEMORY_PADDING);    
 
-                p->len[i] = k * m;    
-
-                memcpy( p->data + t, src->data[i], k1 * m1);
-                t += p->len[i];
+                memcpy( p->data + p->len[i], src->data[i], k * m);
+                t += len;
                 ++i;
             }   
 
