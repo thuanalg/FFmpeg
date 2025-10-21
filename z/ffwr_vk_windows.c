@@ -18,7 +18,7 @@
 #include <pthread.h>
 
 #define PADDING_MEMORY  0
-
+#define FFWR_BUFF_SIZE 15000000
 #ifndef UNIX_LINUX
 #include <windows.h>
 HWND gb_sdlWindow = 0;
@@ -65,13 +65,16 @@ typedef struct __FFWR_AvFrame__ {
     int len[AV_NUM_DATA_POINTERS + 1]; 
     uint8_t data[0];
 } FFWR_AvFrame;
-int ffwr_mv2_rawframe(FFWR_AvFrame **dst, AVFrame *src);
+//int ffwr_mv2_rawframe(FFWR_AvFrame **dst, AVFrame *src);
 FFWR_AvFrame *gb_transfer_avframe = 0;
 
 ffwr_gen_data_st *gb_frame;
-ffwr_gen_data_st *planVFrame;
+ffwr_gen_data_st *gb_tsplanVFrame;
 static void set_sdl_yuv_conversion_mode(AVFrame *frame);
 int get_buff_size(ffwr_gen_data_st **dst, AVFrame *src);
+int ffwr_fill_vframe(FFWR_AvFrame *dst, AVFrame *src);
+int ffwr_update_vframe(FFWR_AvFrame **dst, AVFrame *src);
+int ffwr_create_rawframe(FFWR_AvFrame **dst, AVFrame *src);
 AVFrame *gb_dst_draw;
 AVFrame *gb_src_draw;
 
@@ -274,6 +277,21 @@ int main (int argc, char *argv[])
 	ret = spl_init_log_ext(&input);
     avdevice_register_all();
     
+    gb_tsplanVFrame = malloc(FFWR_BUFF_SIZE);
+    if(!gb_tsplanVFrame) {
+        exit(1);
+    }
+    memset(gb_tsplanVFrame, 0, FFWR_BUFF_SIZE);
+    gb_tsplanVFrame->total = FFWR_BUFF_SIZE;
+    gb_tsplanVFrame->range = gb_tsplanVFrame->total -sizeof(ffwr_gen_data_st);
+
+    gb_frame = malloc(FFWR_BUFF_SIZE);
+    if(!gb_frame) {
+        exit(1);
+    }
+    memset(gb_frame, 0, FFWR_BUFF_SIZE);
+    gb_frame->total = FFWR_BUFF_SIZE;
+    gb_frame->range = gb_frame->total -sizeof(ffwr_gen_data_st);    
 
 	if(ret) {
 		exit(1);
@@ -349,36 +367,22 @@ int main (int argc, char *argv[])
         pthread_mutex_lock(&gb_FRAME_MTX);
         do {
 #if 1            
-            if(!planVFrame) {
-                break;
-            }
-            p = (FFWR_AvFrame *)planVFrame->data;
-            if(!p->tt_sz.total) {
+            if(!gb_tsplanVFrame) {
                 break;
             }
             if(!gb_frame) {
-                gb_frame = malloc(planVFrame->total * 2);
-                memset(gb_frame, 0, planVFrame->total * 2);
-                gb_frame->total = planVFrame->total * 2;
-                gb_frame->range = gb_frame->total - sizeof(ffwr_gen_data_st);
+                break;
+            }  
+            if (gb_tsplanVFrame->pl - gb_tsplanVFrame->pc > 0) {
+                break;
+            }          
+            memcpy(gb_frame->data + gb_frame->pl, 
+                gb_tsplanVFrame->data + gb_tsplanVFrame->pc,
+                gb_tsplanVFrame->pl - gb_tsplanVFrame->pc);
                 
-            } else {
-                if(gb_frame->total < planVFrame->total) {
-                    exit(1);
-                }
-            }
-            if(!gb_frame) {
-                break;
-            }
-            p2 = (FFWR_AvFrame *)gb_frame->data;
-            if(p->pts > p2->pts) {
-                memcpy(gb_frame->data + gb_frame->pc, 
-                    planVFrame->data + planVFrame->pc, 
-                    planVFrame->pl - planVFrame->pc);
-                gb_frame->pl += (planVFrame->pl - planVFrame->pc);
-                planVFrame->pl = planVFrame->pc = 0;
-                frame_ready = 1;
-            }
+            gb_frame->pl += gb_tsplanVFrame->pl - gb_tsplanVFrame->pc;
+            gb_tsplanVFrame->pl = gb_tsplanVFrame->pc = 0;
+            frame_ready = 1;
 #else            
             //frame_ready = 1;
             //spl_vframe(gb_src_draw);
@@ -435,6 +439,7 @@ int main (int argc, char *argv[])
         SDL_RenderClear(ren);
         SDL_RenderCopy(ren, gb_texture, NULL, NULL);
         SDL_RenderPresent(ren);
+        gb_frame->pl = gb_frame->pc = 0;
 
         //gb_dst_draw->linesize[0] = 0;
         //av_frame_unref(gb_dst_draw);
@@ -462,6 +467,7 @@ void *demux_routine(void *arg) {
     int ret = 0;
     int result = 0;
     AVFrame *tmp = 0;
+    FFWR_AvFrame *ffwr_vframe = 0;
     
     ret = ffwr_open_input(&gb_instream, 
         "tcp://127.0.0.1:12345", 
@@ -510,17 +516,37 @@ void *demux_routine(void *arg) {
             //av_frame_copy_props(gb_instream.vframe, tmp);    
 
             spl_vframe(gb_instream.vframe);
-            ffwr_mv2_rawframe(&gb_transfer_avframe, gb_instream.vframe);
+            if(!ffwr_vframe) {
+                ffwr_create_rawframe(&ffwr_vframe, gb_instream.vframe);
+            }
+            else {
+                ffwr_update_vframe(&ffwr_vframe, gb_instream.vframe);
+            }
+            //ffwr_mv2_rawframe(&gb_transfer_avframe, gb_instream.vframe);
             pthread_mutex_lock(&gb_FRAME_MTX);
             do {
-                if(!gb_src_draw) {
+                if(!gb_tsplanVFrame) {
                     break;
                 }
-                get_buff_size(&planVFrame, gb_instream.vframe);
+                if(!ffwr_vframe) {
+                    break;
+                }  
+                if(ffwr_vframe->tt_sz.total < 1) {
+                    break;
+                }    
+                if(gb_tsplanVFrame->range > gb_tsplanVFrame->pl + ffwr_vframe->tt_sz.total) {                      
+                    memcpy(gb_tsplanVFrame->data + gb_tsplanVFrame->pl, 
+                        ffwr_vframe, 
+                        ffwr_vframe->tt_sz.total);
+                    gb_tsplanVFrame->pl += ffwr_vframe->tt_sz.total;
+                } else {
+                    spllog(1, "over range");
+                }
+                    //get_buff_size(&gb_tsplanVFrame, gb_instream.vframe);
 
-                //av_frame_copy(gb_src_draw, gb_instream.vframe);
-                //av_frame_copy_props(gb_src_draw, gb_instream.vframe);
-                //gb_src_draw->pts = gb_instream.vframe->pts;
+                    //av_frame_copy(gb_src_draw, gb_instream.vframe);
+                    //av_frame_copy_props(gb_src_draw, gb_instream.vframe);
+                    //gb_src_draw->pts = gb_instream.vframe->pts;
             } while(0);
             pthread_mutex_unlock(&gb_FRAME_MTX);
             //spl_vframe(gb_instream.vframe);
@@ -796,10 +822,67 @@ int ffwr_get_rawsize_vframe(AVFrame *src) {
             k = src->linesize[i];
             m = (i == 0) ? src->height : ((src->height)/2);
             ret += k * (m + MEMORY_PADDING);
+            spllog(1, "ret: %d", ret);
             ++i;
         }           
     }
     return ret;
+}
+/*+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+*/
+int ffwr_update_vframe(FFWR_AvFrame **dst, AVFrame *src) {
+    int ret = 0;
+    int total = 0;
+    int shouldupdate = 1;
+    FFWR_AvFrame *tmp = 0;
+    do {
+        if(!src) {
+            ret = 1;
+            break;
+        }
+        if(!dst) {
+            ret = 1;
+            break;
+        } 
+        if(! (*dst)) {
+            ret = 1;
+            break;
+        }         
+        tmp = *dst;
+        total = ffwr_get_rawsize_vframe(src);
+        if(total != tmp->tt_sz.total) {
+            break;
+        }
+        if(tmp->fmt != src->format) {
+            break;            
+        }
+        if(tmp->w != src->width) {
+            break;            
+        }
+        if(tmp->h != src->height) {
+            break;            
+        }        
+        shouldupdate = 0;
+    } while(0);
+
+    if(ret) {
+        return ret;
+    }
+
+    do {
+        if(shouldupdate) {
+            tmp = realloc(*dst, total);
+            if(!tmp) {
+                ret = 1;
+                break;
+            }
+        }
+        tmp->tt_sz.total = total;
+        tmp->tt_sz.type = FFWR_FRAME;
+        ret = ffwr_fill_vframe(tmp, src);
+        *dst = tmp;
+    } while(0);
+
+    return ret  = 0;
 }
 /*+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+*/
 int ffwr_fill_vframe(FFWR_AvFrame *dst, AVFrame *src) {
@@ -873,29 +956,21 @@ int ffwr_create_rawframe(FFWR_AvFrame **dst, AVFrame *src) {
                     ret = 1;
                     break;
                 }
+                memset(tmp, 0, total);
+
                 tmp->tt_sz.total = total;
                 tmp->tt_sz.type = FFWR_FRAME;
-
-                tmp->w = src->width;
-                tmp->h = src->height;
-                tmp->fmt = src->format;
-                tmp->pts = src->pts;
-                /*memcpy(tmp->linesize, src->linesize, sizeof(src->linesize));*/
-                i = 0;
-                while(src->linesize[i] && i < AV_NUM_DATA_POINTERS) {
-                    tmp->linesize[i] = src->linesize[i];
-                    ++i;
-                }
-                *dst = tmp;
-                break;
+                ffwr_fill_vframe(tmp, src);
             }
             *dst = tmp;
+            //ffwr_update_vframe(dst, src);  
             break;
         }
     } while(0);
     return ret;
 }
-    /*+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+*/
+/*+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+*/
+#if 0
 int ffwr_mv2_rawframe(FFWR_AvFrame **dst, AVFrame *src) {
     int ret = 0;
     FFWR_AvFrame *tmp = 0;
@@ -932,4 +1007,5 @@ int ffwr_mv2_rawframe(FFWR_AvFrame **dst, AVFrame *src) {
     } while(0);
     return ret;
 }
+#endif
 /*+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+*/
