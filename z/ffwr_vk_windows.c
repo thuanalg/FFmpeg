@@ -18,7 +18,7 @@
 #include <pthread.h>
 
 #define PADDING_MEMORY  0
-#define FFWR_BUFF_SIZE 20000000
+#define FFWR_BUFF_SIZE 12000000
 #ifndef UNIX_LINUX
 #include <windows.h>
 HWND gb_sdlWindow = 0;
@@ -269,6 +269,7 @@ int main (int argc, char *argv[])
     int frame_ready = 0;
     SDL_Texture *gb_texture = NULL;
     FFWR_SIZE_TYPE *it = 0;
+     int step = 0;
 	
 	char cfgpath[1024] = {0};
 	SPL_INPUT_ARG input = {0};
@@ -366,7 +367,7 @@ int main (int argc, char *argv[])
         SDL_RenderClear(ren);
         SDL_RenderPresent(ren);
 #endif
-        int step = 0;
+       
         if(gb_frame->pl < 1) {
             pthread_mutex_lock(&gb_FRAME_MTX);
             do {           
@@ -395,6 +396,10 @@ int main (int argc, char *argv[])
             pthread_mutex_unlock(&gb_FRAME_MTX);
         }
 #if 1
+        if(step < 4) {
+            step++;
+            gb_frame->pl = gb_frame->pc = 0;
+        }
         if(gb_frame->pl <= gb_frame->pc) {
             gb_frame->pl = gb_frame->pc = 0;
             continue;
