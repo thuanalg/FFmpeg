@@ -508,7 +508,8 @@ void *demux_routine(void *arg) {
                     gb_tsplanVFrame->pl += ffwr_vframe->tt_sz.total;
                     spllog(1, "gb_tsplanVFrame->pl: %d", gb_tsplanVFrame->pl);
                 } else {
-                    spllog(1, "over range");
+                    gb_tsplanVFrame->pl = 0;
+                    gb_tsplanVFrame->pc = 0;
                 }
 
             } while(0);
@@ -680,6 +681,7 @@ int ffwr_fill_vframe(FFWR_AvFrame *dst, AVFrame *src) {
         i = 0;
         memset(dst->pos, 0, sizeof(dst->pos));
         memset(dst->len, 0, sizeof(dst->len));
+        memset(dst->linesize, 0, sizeof(dst->linesize));
         while(src->linesize[i] && i < AV_NUM_DATA_POINTERS) {
             dst->linesize[i] = src->linesize[i];
             ++i;
@@ -692,7 +694,8 @@ int ffwr_fill_vframe(FFWR_AvFrame *dst, AVFrame *src) {
                 m = (i == 0) ? src->height : ((src->height)/2);
                 dst->len[i] = k * m;
                 pos += k * (m + MEMORY_PADDING);
-                memcpy(dst->data + dst->pos[i], src->data[i], dst->len[i]);
+                memcpy(dst->data + dst->pos[i], 
+                    src->data[i], dst->len[i]);
                 ++i;
             }  
             i = 0;
