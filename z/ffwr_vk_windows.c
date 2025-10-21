@@ -364,7 +364,12 @@ int main (int argc, char *argv[])
                 if (gb_tsplanVFrame->pl <= gb_tsplanVFrame->pc) {
                     break;
                 }          
-               
+                if(step < 20) {
+                    step++;
+                    gb_frame->pl = gb_frame->pc = 0;
+                    gb_tsplanVFrame->pl = gb_tsplanVFrame->pc = 0;
+                    break;
+                }               
                 if(gb_tsplanVFrame->pl > 0) {
                     memcpy(gb_frame->data + gb_frame->pl, 
                         gb_tsplanVFrame->data + gb_tsplanVFrame->pc,
@@ -374,16 +379,11 @@ int main (int argc, char *argv[])
                     gb_tsplanVFrame->pl = gb_tsplanVFrame->pc = 0;
                     frame_ready = 1;
                 }
-                
-            
             } while(0);
             pthread_mutex_unlock(&gb_FRAME_MTX);
         }
-#if 1
-        if(step < 4) {
-            step++;
-            gb_frame->pl = gb_frame->pc = 0;
-        }
+
+
         if(gb_frame->pl <= gb_frame->pc) {
             gb_frame->pl = gb_frame->pc = 0;
             continue;
@@ -424,7 +424,6 @@ int main (int argc, char *argv[])
             gb_frame->pc += it->total;
         SDL_Delay(30);
         
-#endif        
     }
 
     SDL_DestroyRenderer(ren);
@@ -501,12 +500,14 @@ void *demux_routine(void *arg) {
                 if(ffwr_vframe->tt_sz.total < 1) {
                     break;
                 }    
-                if(gb_tsplanVFrame->range > gb_tsplanVFrame->pl + ffwr_vframe->tt_sz.total) {                      
+                if(gb_tsplanVFrame->range > 
+                    gb_tsplanVFrame->pl + ffwr_vframe->tt_sz.total) {                      
                     memcpy(gb_tsplanVFrame->data + gb_tsplanVFrame->pl, 
                         ffwr_vframe, 
                         ffwr_vframe->tt_sz.total);
                     gb_tsplanVFrame->pl += ffwr_vframe->tt_sz.total;
-                    spllog(1, "gb_tsplanVFrame->pl: %d", gb_tsplanVFrame->pl);
+                    spllog(1, "gb_tsplanVFrame->pl: %d", 
+                        gb_tsplanVFrame->pl);
                 } else {
                     gb_tsplanVFrame->pl = 0;
                     gb_tsplanVFrame->pc = 0;
@@ -518,12 +519,14 @@ void *demux_routine(void *arg) {
             av_frame_unref(gb_instream.vframe);
         }   
         else if (gb_instream.pkt.stream_index == 1) {
-            result = avcodec_send_packet(gb_instream.a_cctx, &(gb_instream.pkt));
+            result = avcodec_send_packet(
+                gb_instream.a_cctx, &(gb_instream.pkt));
             if(result < 0) {
                 spllog(1, "v_cctx: 0x%p", gb_instream.a_cctx);
                 break;
             }
-		    result = avcodec_receive_frame(gb_instream.a_cctx, gb_instream.a_frame);
+		    result = avcodec_receive_frame(
+                gb_instream.a_cctx, gb_instream.a_frame);
 		    if (result < 0) {
 		    	break;
 		    }  
