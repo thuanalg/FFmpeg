@@ -17,7 +17,7 @@
 #include <libavformat/avformat.h>
 #include <pthread.h>
 
-#define PADDING_MEMORY  1024
+#define PADDING_MEMORY  0
 
 #ifndef UNIX_LINUX
 #include <windows.h>
@@ -61,9 +61,11 @@ typedef struct __FFWR_AvFrame__ {
     int fmt;
     int pts;
     int linesize[AV_NUM_DATA_POINTERS];
-    int len[AV_NUM_DATA_POINTERS];   
+    int pos[AV_NUM_DATA_POINTERS + 1];   
     uint8_t data[0];
 } FFWR_AvFrame;
+int ffwr_mv2_rawframe(FFWR_AvFrame **dst, AVFrame *src);
+FFWR_AvFrame *gb_transfer_avframe = 0;
 
 ffwr_gen_data_st *gb_frame;
 ffwr_gen_data_st *planVFrame;
@@ -414,9 +416,9 @@ int main (int argc, char *argv[])
         p = (FFWR_AvFrame *)(gb_frame->data + gb_frame->pc);
 #if 1        
         SDL_UpdateYUVTexture( gb_texture, NULL,
-            p->data + p->len[0], p->linesize[0],
-            p->data + p->len[1], p->linesize[1],
-            p->data + p->len[2], p->linesize[2]
+            p->data + p->pos[0], p->linesize[0],
+            p->data + p->pos[1], p->linesize[1],
+            p->data + p->pos[2], p->linesize[2]
            
         );
 #else
@@ -507,6 +509,7 @@ void *demux_routine(void *arg) {
             //av_frame_copy_props(gb_instream.vframe, tmp);    
 
             spl_vframe(gb_instream.vframe);
+            ffwr_mv2_rawframe(&gb_transfer_avframe, gb_instream.vframe);
             pthread_mutex_lock(&gb_FRAME_MTX);
             do {
                 if(!gb_src_draw) {
@@ -541,6 +544,7 @@ void *demux_routine(void *arg) {
     return 0;
 }
 #define MEMORY_PADDING   1
+
 int get_buff_size(ffwr_gen_data_st **dst, AVFrame *src) {
     FFWR_AvFrame *p = 0;
     int ret = 0;
@@ -609,19 +613,19 @@ int get_buff_size(ffwr_gen_data_st **dst, AVFrame *src) {
             //}
 
             memset(p->linesize, 0, sizeof(p->linesize));
-            memset(p->len, 0, sizeof(p->len));
+            memset(p->pos, 0, sizeof(p->pos));
             i = 0;
             len = 0;
             while(src->linesize[i] && i < AV_NUM_DATA_POINTERS) 
             {
-                p->len[i] = t;
+                p->pos[i] = t;
                 p->linesize[i] = src->linesize[i];
 
                 k = src->linesize[i];
                 m = (i == 0) ? src->height : ((src->height)/2);
                 len = k * (m + MEMORY_PADDING);    
 
-                memcpy( p->data + p->len[i], src->data[i], k * m);
+                memcpy( p->data + p->pos[i], src->data[i], k * m);
                 t += len;
                 ++i;
             }   
@@ -776,5 +780,111 @@ convert_frame(AVFrame *src, AVFrame *dst)
     dst->pts = src->pts;
 
     return 0;
+}
+/*+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+*/
+int ffwr_get_rawsize_vframe(AVFrame *src) {
+    int ret = 0;
+    int k = 0;
+    int m = 0;
+    int i = 0;
+    if(!src) {
+        return ret;
+    }
+    if(src->format == 0) {
+        while(src->linesize[i]) {
+            k = src->linesize[i];
+            m = (i == 0) ? src->height : ((src->height)/2);
+            ret += k * (m + MEMORY_PADDING);
+            ++i;
+        }           
+    }
+    return ret;
+}
+/*+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+*/
+int ffwr_create_rawframe(FFWR_AvFrame **dst, AVFrame *src) {
+    int ret = 0;
+    FFWR_AvFrame *tmp = 0;
+    int total = 0;
+    int len = 0;
+    int k = 0;
+    int i = 0;
+    do {
+        if(!src) {
+            ret = 1;
+            break;
+        }
+        if(!dst) {
+            ret = 1;
+            break;
+        }
+        tmp = *dst;
+        if(src->format == 0) {
+            len = ffwr_get_rawsize_vframe(src);
+            total = sizeof(FFWR_FRAME) + len + PADDING_MEMORY;
+            //total += len + PADDING_MEMORY;
+            if(!tmp) {    
+                tmp = malloc(total);
+                if(!tmp) {
+                    ret = 1;
+                    break;
+                }
+                tmp->tt_sz.total = total;
+                tmp->tt_sz.type = FFWR_FRAME;
+
+                tmp->w = src->width;
+                tmp->h = src->height;
+                tmp->fmt = src->format;
+                tmp->pts = src->pts;
+                /*memcpy(tmp->linesize, src->linesize, sizeof(src->linesize));*/
+                i = 0;
+                while(src->linesize[i] && i < AV_NUM_DATA_POINTERS) {
+                    tmp->linesize[i] = src->linesize[i];
+                    ++i;
+                }
+                *dst = tmp;
+                break;
+            }
+            *dst = tmp;
+            break;
+        }
+    } while(0);
+    return ret;
+}
+    /*+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+*/
+int ffwr_mv2_rawframe(FFWR_AvFrame **dst, AVFrame *src) {
+    int ret = 0;
+    FFWR_AvFrame *tmp = 0;
+    int i = 0;
+    unsigned char kond = 0x01;
+    do {
+        if(!dst) {
+            ret = 1;
+            break;
+        }
+        tmp = *dst;
+        if(!tmp) {
+
+        }
+
+        if(tmp) {
+            kond = 0x01;
+            kond &= (tmp->fmt == src->format);
+            kond &= (tmp->w == src->width);
+            kond &= (tmp->h == src->height);
+            if(kond) {
+                for(i = 0; i < AV_NUM_DATA_POINTERS; ++i) {
+                    if(!tmp->linesize[i]) {
+                        break;
+                    }
+                    memcpy(tmp->data + tmp->pos[i], 
+                        src->data[i], 
+                        tmp->pos[i + 1] - tmp->pos[i]);
+                }
+                break;
+            }
+        }
+        *dst = tmp;
+    } while(0);
+    return ret;
 }
 /*+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+*/
