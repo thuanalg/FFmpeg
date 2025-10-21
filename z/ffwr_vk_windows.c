@@ -62,6 +62,7 @@ typedef struct __FFWR_AvFrame__ {
     int pts;
     int linesize[AV_NUM_DATA_POINTERS];
     int pos[AV_NUM_DATA_POINTERS + 1];   
+    int len[AV_NUM_DATA_POINTERS + 1]; 
     uint8_t data[0];
 } FFWR_AvFrame;
 int ffwr_mv2_rawframe(FFWR_AvFrame **dst, AVFrame *src);
@@ -543,7 +544,7 @@ void *demux_routine(void *arg) {
     
     return 0;
 }
-#define MEMORY_PADDING   1
+#define MEMORY_PADDING   2
 
 int get_buff_size(ffwr_gen_data_st **dst, AVFrame *src) {
     FFWR_AvFrame *p = 0;
@@ -801,6 +802,50 @@ int ffwr_get_rawsize_vframe(AVFrame *src) {
     return ret;
 }
 /*+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+*/
+int ffwr_fill_vframe(FFWR_AvFrame *dst, AVFrame *src) {
+    int ret = 0;
+    int k = 0;
+    int m = 0;
+    int i = 0;
+    int pos = 0;
+    do {
+        if(!src) {
+            ret = 1;
+            break;
+        }
+        if(!dst) {
+            ret = 1;
+            break;
+        }  
+        dst->w = src->width;
+        dst->h = src->height;
+        dst->fmt = src->format;
+        dst->pts = src->pts;
+        i = 0;
+        memset(dst->pos, 0, sizeof(dst->pos));
+        memset(dst->len, 0, sizeof(dst->len));
+        while(src->linesize[i] && i < AV_NUM_DATA_POINTERS) {
+            dst->linesize[i] = src->linesize[i];
+            ++i;
+        }              
+        if(src->format == 0) {
+            i = 0;
+            while(src->linesize[i]) {
+                dst->pos[i] = pos;
+                k = src->linesize[i];
+                m = (i == 0) ? src->height : ((src->height)/2);
+                dst->len[i] = k * m;
+                pos += k * (m + MEMORY_PADDING);
+                memcpy(dst->data + dst->pos[i], src->data[i], dst->len[i]);
+                ++i;
+            }  
+            i = 0;
+            
+        }
+    } while(0);
+    return ret;
+}
+/*+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+*/
 int ffwr_create_rawframe(FFWR_AvFrame **dst, AVFrame *src) {
     int ret = 0;
     FFWR_AvFrame *tmp = 0;
@@ -820,7 +865,7 @@ int ffwr_create_rawframe(FFWR_AvFrame **dst, AVFrame *src) {
         tmp = *dst;
         if(src->format == 0) {
             len = ffwr_get_rawsize_vframe(src);
-            total = sizeof(FFWR_FRAME) + len + PADDING_MEMORY;
+            total = sizeof(FFWR_FRAME) + len;
             //total += len + PADDING_MEMORY;
             if(!tmp) {    
                 tmp = malloc(total);
