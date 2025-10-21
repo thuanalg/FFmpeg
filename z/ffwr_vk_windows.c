@@ -18,7 +18,7 @@
 #include <pthread.h>
 
 #define PADDING_MEMORY  0
-#define FFWR_BUFF_SIZE 15000000
+#define FFWR_BUFF_SIZE 20000000
 #ifndef UNIX_LINUX
 #include <windows.h>
 HWND gb_sdlWindow = 0;
@@ -268,6 +268,7 @@ int main (int argc, char *argv[])
     FFWR_AvFrame *p = 0, *p2 = 0;
     int frame_ready = 0;
     SDL_Texture *gb_texture = NULL;
+    FFWR_SIZE_TYPE *it = 0;
 	
 	char cfgpath[1024] = {0};
 	SPL_INPUT_ARG input = {0};
@@ -351,6 +352,7 @@ int main (int argc, char *argv[])
 
     // main loop
     while (running) {
+        it = 0;
         p = 0;
         frame_ready = 0;
         while (SDL_PollEvent(&e)) {
@@ -364,45 +366,43 @@ int main (int argc, char *argv[])
         SDL_RenderClear(ren);
         SDL_RenderPresent(ren);
 #endif
-        pthread_mutex_lock(&gb_FRAME_MTX);
-        do {
-#if 1            
-            if(!gb_tsplanVFrame) {
-                break;
-            }
-            if(!gb_frame) {
-                break;
-            }  
-            if (gb_tsplanVFrame->pl - gb_tsplanVFrame->pc > 0) {
-                break;
-            }          
-            memcpy(gb_frame->data + gb_frame->pl, 
-                gb_tsplanVFrame->data + gb_tsplanVFrame->pc,
-                gb_tsplanVFrame->pl - gb_tsplanVFrame->pc);
-                
-            gb_frame->pl += gb_tsplanVFrame->pl - gb_tsplanVFrame->pc;
-            gb_tsplanVFrame->pl = gb_tsplanVFrame->pc = 0;
-            frame_ready = 1;
-#else            
-            //frame_ready = 1;
-            //spl_vframe(gb_src_draw);
-            //spl_vframe(gb_dst_draw);
-            if(gb_src_draw->pts > gb_dst_draw->pts) 
-            {
-                av_frame_copy(gb_dst_draw, gb_src_draw);
-                av_frame_copy_props(gb_dst_draw, gb_src_draw);
-                //if(gb_dst_draw->linesize[0]) {
-                    frame_ready = 1;
-                    //av_frame_unref(gb_src_draw);
-                    //gb_src_draw->linesize[0] = 0;
-                    gb_dst_draw->pts = gb_src_draw->pts;
-                //}
-            }
-#endif            
-        } while(0);
+        int step = 0;
+        if(gb_frame->pl < 1) {
+            pthread_mutex_lock(&gb_FRAME_MTX);
+            do {           
+                if(!gb_tsplanVFrame) {
+                    break;
+                }
+                if(!gb_frame) {
+                    break;
+                }  
+                if (gb_tsplanVFrame->pl <= gb_tsplanVFrame->pc) {
+                    break;
+                }          
+               
+                if(gb_tsplanVFrame->pl > 0) {
+                    memcpy(gb_frame->data + gb_frame->pl, 
+                        gb_tsplanVFrame->data + gb_tsplanVFrame->pc,
+                        gb_tsplanVFrame->pl - gb_tsplanVFrame->pc);
 
-        pthread_mutex_unlock(&gb_FRAME_MTX);
+                    gb_frame->pl += gb_tsplanVFrame->pl - gb_tsplanVFrame->pc;
+                    gb_tsplanVFrame->pl = gb_tsplanVFrame->pc = 0;
+                    frame_ready = 1;
+                }
+                
+            
+            } while(0);
+            pthread_mutex_unlock(&gb_FRAME_MTX);
+        }
 #if 1
+        if(gb_frame->pl <= gb_frame->pc) {
+            gb_frame->pl = gb_frame->pc = 0;
+            continue;
+        } else {
+            it = (FFWR_SIZE_TYPE *) (gb_frame->data + gb_frame->pc);
+            frame_ready = 1;
+        }
+       
         if(!frame_ready) {
             SDL_Delay(10);
             continue;
@@ -435,11 +435,14 @@ int main (int argc, char *argv[])
             gb_dst_draw->data[2], gb_dst_draw->linesize[2]
         );        
 #endif        
-        //gb_frame->pl = gb_frame->pc = 0;
+        spllog(1, "pc render: %d, pts: %d", gb_frame->pc, p->pts);
         SDL_RenderClear(ren);
         SDL_RenderCopy(ren, gb_texture, NULL, NULL);
         SDL_RenderPresent(ren);
-        gb_frame->pl = gb_frame->pc = 0;
+        if(it)
+            gb_frame->pc += it->total;
+        SDL_Delay(30);
+        
 
         //gb_dst_draw->linesize[0] = 0;
         //av_frame_unref(gb_dst_draw);
@@ -539,6 +542,7 @@ void *demux_routine(void *arg) {
                         ffwr_vframe, 
                         ffwr_vframe->tt_sz.total);
                     gb_tsplanVFrame->pl += ffwr_vframe->tt_sz.total;
+                    spllog(1, "gb_tsplanVFrame->pl: %d", gb_tsplanVFrame->pl);
                 } else {
                     spllog(1, "over range");
                 }
