@@ -33,9 +33,10 @@ typedef enum {
 
     FFWR_END
 } FFWR_DATA_TYPE;
+
 typedef struct __FFWR_GENERIC_DATA__ {
 	int total; /*Total size*/
-	int range; /*Total size*/
+	int range; /*data range*/
 	int pc; /*Point to the current*/
 	int pl; /*Point to the last*/
 	char data[0]; /*Generic data */
@@ -57,22 +58,6 @@ typedef struct __FFWR_AvFrame__ {
     int len[AV_NUM_DATA_POINTERS + 1]; 
     uint8_t data[0];
 } FFWR_AvFrame;
-
-
-//int ffwr_mv2_rawframe(FFWR_AvFrame **dst, AVFrame *src);
-FFWR_AvFrame *gb_transfer_avframe = 0;
-
-ffwr_gen_data_st *gb_frame;
-ffwr_gen_data_st *gb_tsplanVFrame;
-static void set_sdl_yuv_conversion_mode(AVFrame *frame);
-int get_buff_size(ffwr_gen_data_st **dst, AVFrame *src);
-int ffwr_fill_vframe(FFWR_AvFrame *dst, AVFrame *src);
-int ffwr_update_vframe(FFWR_AvFrame **dst, AVFrame *src);
-int ffwr_create_rawframe(FFWR_AvFrame **dst, AVFrame *src);
-AVFrame *gb_dst_draw;
-AVFrame *gb_src_draw;
-
-pthread_mutex_t gb_FRAME_MTX = PTHREAD_MUTEX_INITIALIZER;
 
 #ifndef __FFWR_INSTREAM_DEF__
 #define __FFWR_INSTREAM_DEF__
@@ -99,13 +84,28 @@ typedef struct __FFWR_INSTREAM__ {
 
 } FFWR_INSTREAM;
 #endif
-
+/*+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+*/
+AVFrame *gb_dst_draw;
+AVFrame *gb_src_draw;
+pthread_mutex_t gb_FRAME_MTX = PTHREAD_MUTEX_INITIALIZER;
 FFWR_INSTREAM gb_instream;
-int
-convert_frame(AVFrame *src, AVFrame *dst);
-int ffwr_open_input(FFWR_INSTREAM *pinput, char *name, int mode);
+FFWR_AvFrame *gb_transfer_avframe = 0;
+ffwr_gen_data_st *gb_frame;
+ffwr_gen_data_st *gb_tsplanVFrame;
 int scan_all_pmts_set;
-int ffwr_open_input(FFWR_INSTREAM *pinput, char *name, int mode) {
+/*+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+*/
+static void set_sdl_yuv_conversion_mode(AVFrame *frame);
+int get_buff_size(ffwr_gen_data_st **dst, AVFrame *src);
+int ffwr_fill_vframe(FFWR_AvFrame *dst, AVFrame *src);
+int ffwr_update_vframe(FFWR_AvFrame **dst, AVFrame *src);
+int ffwr_create_rawframe(FFWR_AvFrame **dst, AVFrame *src);
+int convert_frame(AVFrame *src, AVFrame *dst);
+int ffwr_open_input(FFWR_INSTREAM *pinput, char *name, int mode);
+
+/*+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+*/
+
+int ffwr_open_input(FFWR_INSTREAM *pinput, char *name, int mode) 
+{
     int ret = 0;
     int result = 0;
     AVInputFormat *iformat = 0; 
@@ -235,7 +235,7 @@ int ffwr_open_input(FFWR_INSTREAM *pinput, char *name, int mode) {
     } while(0);
     return ret;
 }
-
+/*+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+*/
 void *demux_routine(void *arg);
 #ifndef UNIX_LINUX
 int WinMain (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd)
@@ -292,15 +292,26 @@ int main (int argc, char *argv[])
 
     ret = pthread_create(&thread_id, 0,
                                   demux_routine, 0);
-
+#if 0
     win = SDL_CreateWindow(
         "SDL2 Window",            // title
         SDL_WINDOWPOS_UNDEFINED,   // x
         SDL_WINDOWPOS_UNDEFINED,   // y
         640,                      // width
         480,                      // height
-        SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE          // flags
+        SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_VULKAN         // flags
     );
+    //SDL_WINDOW_VULKAN
+#else
+    win = SDL_CreateWindow(
+        "SDL2 Window",            // title
+        SDL_WINDOWPOS_UNDEFINED,   // x
+        SDL_WINDOWPOS_UNDEFINED,   // y
+        640,                      // width
+        480,                      // height
+        SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE       // flags
+    );
+#endif    
 	SDL_GetWindowWMInfo(win, &info);
 	gb_sdlWindow = info.info.win.window;
     if (!win) {
@@ -417,7 +428,7 @@ int main (int argc, char *argv[])
 	spl_finish_log();
     return 0;
 }
-
+/*+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+*/
 void *demux_routine(void *arg) {
     int ret = 0;
     int result = 0;
