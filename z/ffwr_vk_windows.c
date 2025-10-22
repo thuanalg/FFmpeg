@@ -756,7 +756,6 @@ int ffwr_create_rawvframe(FFWR_VFrame **dst, AVFrame *src) {
 /*+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+*/
 int convert_audio_frame( AVFrame *src, AVFrame **outfr)
 {
-    //gb_instream
     int ret = 0;
     AVChannelLayout *src_layout = 0;
     int n = 0;
@@ -872,48 +871,76 @@ int ffwr_create_a_swrContext(AVFrame *src, AVFrame *dst)
     return ret;
 }
 #if 0
-int main() {
-    // Tạo mới và thiết lập SwrContext
-    SwrContext *swr = swr_alloc_set_opts2(
-        NULL,                       // NULL → tạo mới
-        AV_CH_LAYOUT_STEREO,         // kênh đầu ra
-        AV_SAMPLE_FMT_FLTP,          // định dạng sample đầu ra
-        44100,                       // sample rate đầu ra
-        AV_CH_LAYOUT_MONO,           // kênh đầu vào
-        AV_SAMPLE_FMT_S16,           // định dạng sample đầu vào
-        48000,                       // sample rate đầu vào
-        0, NULL                      // log offset, log context
-    );
+Bước 1:
+SDL_AudioSpec want;
+want.freq = 48000;           // sample rate output
+want.format = AUDIO_F32SYS;  // float 32-bit
+want.channels = 2;           // stereo
+want.samples = 1024;         // buffer size
+want.callback = audio_callback; // callback lấy dữ liệu
+SDL_OpenAudio(&want, NULL);
+want.userdata = &audio_data;  // <<< đây là chỗ truyền
+SDL_PauseAudio(0); // start playback
 
-    if (!swr || swr_init(swr) < 0) {
-        fprintf(stderr, "Không thể khởi tạo SwrContext\n");
-        return -1;
+Bước 2: Convert AVFrame sang định dạng SDL chấp nhận
+
+Nếu input khác sample rate, channel, format, dùng SwrContext:
+
+Tạo SwrContext với swr_alloc_set_opts2().
+
+Chuyển đổi: swr_convert(output_frame, input_frame).
+
+Output frame phải có:
+
+Format đúng SDL (AUDIO_F32SYS → AV_SAMPLE_FMT_FLT)
+
+Channel layout đúng (stereo)
+
+Sample rate đúng (48000 Hz)
+
+Bước 3: Đẩy dữ liệu vào SDL buffer
+
+Trong audio_callback của SDL:
+
+Copy out_frame->data[0] vào buffer.
+
+Dùng linesize[0] để biết số byte cần copy.
+
+SDL thread riêng sẽ play audio tự động, main thread vẫn có thể decode frame tiếp theo.
+void audio_callback(void *userdata, Uint8 *stream, int len) {
+    int copy_len = (len > audio_buf_size - audio_buf_index) ? 
+                   audio_buf_size - audio_buf_index : len;
+    memcpy(stream, audio_buf + audio_buf_index, copy_len);
+    audio_buf_index += copy_len;
+}
+
+
+want.callback = audio_callback;
+want.userdata = &audio_data; // buffer của bạn
+SDL_OpenAudio(&want, NULL);
+SDL_PauseAudio(0); // start playback
+
+void audio_callback(void *userdata, Uint8 *stream, int len) {
+    AudioData *ad = (AudioData*)userdata;
+    
+    if(ad->buf_index >= ad->buf_size) {
+        // buffer hết → phát silence
+        memset(stream, 0, len);
+        return;
     }
 
-    // ... sử dụng swr_convert() để chuyển đổi âm thanh ...
+    int copy_len = (len > ad->buf_size - ad->buf_index) ?
+                   ad->buf_size - ad->buf_index : len;
 
-    swr_free(&swr); // giải phóng khi xong
-    return 0;
+    memcpy(stream, ad->buf + ad->buf_index, copy_len);
+    ad->buf_index += copy_len;
+
+    // nếu SDL muốn nhiều hơn còn lại trong buffer
+    if(copy_len < len)
+        memset(stream + copy_len, 0, len - copy_len);
 }
-    #include <libswresample/swresample.h>
-
-SwrContext *swr = swr_alloc();
-if (!swr) {
-    fprintf(stderr, "Could not allocate SwrContext\n");
-    return -1;
-}
-
-// Thiết lập các thông số sau đó
-av_opt_set_int(swr, "in_channel_layout",  AV_CH_LAYOUT_MONO, 0);
-av_opt_set_int(swr, "out_channel_layout", AV_CH_LAYOUT_STEREO, 0);
-av_opt_set_int(swr, "in_sample_rate",     48000, 0);
-av_opt_set_int(swr, "out_sample_rate",    44100, 0);
-av_opt_set_sample_fmt(swr, "in_sample_fmt",  AV_SAMPLE_FMT_S16, 0);
-av_opt_set_sample_fmt(swr, "out_sample_fmt", AV_SAMPLE_FMT_FLTP, 0);
-
-// Khởi tạo SwrContext
-if (swr_init(swr) < 0) {
-    fprintf(stderr, "Failed to initialize SwrContext\n");
-}
-
+-------------->>> AVFilterGraph
+AVFilterGraph + các filter contexts + push/pop frame từ filtergraph.
+SDL_PauseAudio(1); // stop audio
+SDL_CloseAudio();  // close, free resources
 #endif
