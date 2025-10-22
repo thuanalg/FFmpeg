@@ -17,16 +17,16 @@
 #include <libavformat/avformat.h>
 #include <pthread.h>
 
-#define PADDING_MEMORY  0
-#define FFWR_BUFF_SIZE 12000000
+
 #ifndef UNIX_LINUX
 #include <windows.h>
 HWND gb_sdlWindow = 0;
 #else
 #endif 
-
-#define MEMORY_PADDING   2
-
+/*+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+*/
+#define MEMORY_PADDING      2
+#define FFWR_BUFF_SIZE      12000000
+/*+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+*/
 typedef enum {
     FFWR_DTYPE_VFRAME,
     FFWR_DTYPE_PACKET,
@@ -47,7 +47,7 @@ typedef struct {
     int type;    
 } FFWR_SIZE_TYPE;
 
-typedef struct __FFWR_AvFrame__ {
+typedef struct __FFWR_VFrame__ {
     FFWR_SIZE_TYPE tt_sz;
     int w;
     int h;
@@ -57,7 +57,7 @@ typedef struct __FFWR_AvFrame__ {
     int pos[AV_NUM_DATA_POINTERS + 1];   
     int len[AV_NUM_DATA_POINTERS + 1]; 
     uint8_t data[0];
-} FFWR_AvFrame;
+} FFWR_VFrame;
 
 #ifndef __FFWR_INSTREAM_DEF__
 #define __FFWR_INSTREAM_DEF__
@@ -89,17 +89,16 @@ AVFrame *gb_dst_draw;
 AVFrame *gb_src_draw;
 pthread_mutex_t gb_FRAME_MTX = PTHREAD_MUTEX_INITIALIZER;
 FFWR_INSTREAM gb_instream;
-FFWR_AvFrame *gb_transfer_avframe = 0;
+FFWR_VFrame *gb_transfer_avframe = 0;
 ffwr_gen_data_st *gb_frame;
 ffwr_gen_data_st *gb_tsplanVFrame;
 int scan_all_pmts_set;
 /*+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+*/
 static void set_sdl_yuv_conversion_mode(AVFrame *frame);
-int get_buff_size(ffwr_gen_data_st **dst, AVFrame *src);
-int ffwr_fill_vframe(FFWR_AvFrame *dst, AVFrame *src);
-int ffwr_update_vframe(FFWR_AvFrame **dst, AVFrame *src);
-int ffwr_create_rawframe(FFWR_AvFrame **dst, AVFrame *src);
-int convert_frame(AVFrame *src, AVFrame *dst);
+int ffwr_fill_vframe(FFWR_VFrame *dst, AVFrame *src);
+int ffwr_update_vframe(FFWR_VFrame **dst, AVFrame *src);
+int ffwr_create_rawvframe(FFWR_VFrame **dst, AVFrame *src);
+int ffwr_convert_vframe(AVFrame *src, AVFrame *dst);
 int ffwr_open_input(FFWR_INSTREAM *pinput, char *name, int mode);
 
 /*+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+*/
@@ -249,7 +248,7 @@ int main (int argc, char *argv[])
 	int running = 1;
 	SDL_Event e = {0};
     pthread_t thread_id = 0;
-    FFWR_AvFrame *p = 0;
+    FFWR_VFrame *p = 0;
     SDL_Texture *gb_texture = NULL;
     FFWR_SIZE_TYPE *it = 0;
      int step = 0;
@@ -393,7 +392,7 @@ int main (int argc, char *argv[])
         } 
 
         it = (FFWR_SIZE_TYPE *) (gb_frame->data + gb_frame->pc);
-        p = (FFWR_AvFrame *)(gb_frame->data + gb_frame->pc);
+        p = (FFWR_VFrame *)(gb_frame->data + gb_frame->pc);
        
         if(!gb_texture) {
             gb_texture = SDL_CreateTexture( ren,
@@ -433,7 +432,7 @@ void *demux_routine(void *arg) {
     int ret = 0;
     int result = 0;
     AVFrame *tmp = 0;
-    FFWR_AvFrame *ffwr_vframe = 0;
+    FFWR_VFrame *ffwr_vframe = 0;
     
     ret = ffwr_open_input(&gb_instream, 
         "tcp://127.0.0.1:12345", 
@@ -475,12 +474,12 @@ void *demux_routine(void *arg) {
 		    	break;
 		    } 
 
-            convert_frame(tmp, gb_instream.vframe);
+            ffwr_convert_vframe(tmp, gb_instream.vframe);
 
 
             spl_vframe(gb_instream.vframe);
             if(!ffwr_vframe) {
-                ffwr_create_rawframe(&ffwr_vframe, gb_instream.vframe);
+                ffwr_create_rawvframe(&ffwr_vframe, gb_instream.vframe);
             }
             else {
                 ffwr_update_vframe(&ffwr_vframe, gb_instream.vframe);
@@ -535,7 +534,7 @@ void *demux_routine(void *arg) {
 
 /*+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+*/
 int
-convert_frame(AVFrame *src, AVFrame *dst)
+ffwr_convert_vframe(AVFrame *src, AVFrame *dst)
 {
     int ret = 0;
     //av_frame_get_buffer(src, 32);
@@ -584,17 +583,15 @@ convert_frame(AVFrame *src, AVFrame *dst)
 /*+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+*/
 int ffwr_get_rawsize_vframe(AVFrame *src) {
     int ret = 0;
-    int k = 0;
-    int m = 0;
+    int h = 0;
     int i = 0;
     if(!src) {
         return ret;
     }
     if(src->format == 0) {
         while(src->linesize[i]) {
-            k = src->linesize[i];
-            m = (i == 0) ? src->height : ((src->height)/2);
-            ret += k * (m + MEMORY_PADDING);
+            h = (i == 0) ? src->height : ((src->height)/2);
+            ret += src->linesize[i] * (h + MEMORY_PADDING);
             spllog(1, "ret: %d", ret);
             ++i;
         }           
@@ -602,11 +599,11 @@ int ffwr_get_rawsize_vframe(AVFrame *src) {
     return ret;
 }
 /*+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+*/
-int ffwr_update_vframe(FFWR_AvFrame **dst, AVFrame *src) {
+int ffwr_update_vframe(FFWR_VFrame **dst, AVFrame *src) {
     int ret = 0;
     int total = 0;
     int shouldupdate = 1;
-    FFWR_AvFrame *tmp = 0;
+    FFWR_VFrame *tmp = 0;
     do {
         if(!src) {
             ret = 1;
@@ -622,6 +619,9 @@ int ffwr_update_vframe(FFWR_AvFrame **dst, AVFrame *src) {
         }         
         tmp = *dst;
         total = ffwr_get_rawsize_vframe(src);
+        total += sizeof(FFWR_VFrame);
+        spllog(1, "check sz (total, tmp->tt_sz.total)=(%d, %d)",
+            total, tmp->tt_sz.total);
         if(total != tmp->tt_sz.total) {
             break;
         }
@@ -640,7 +640,7 @@ int ffwr_update_vframe(FFWR_AvFrame **dst, AVFrame *src) {
     if(ret) {
         return ret;
     }
-
+    /*spllog(1, "shouldupdate: %d", shouldupdate);*/
     do {
         if(shouldupdate) {
             tmp = realloc(*dst, total);
@@ -658,7 +658,7 @@ int ffwr_update_vframe(FFWR_AvFrame **dst, AVFrame *src) {
     return ret  = 0;
 }
 /*+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+*/
-int ffwr_fill_vframe(FFWR_AvFrame *dst, AVFrame *src) {
+int ffwr_fill_vframe(FFWR_VFrame *dst, AVFrame *src) {
     int ret = 0;
     int k = 0;
     int m = 0;
@@ -704,9 +704,9 @@ int ffwr_fill_vframe(FFWR_AvFrame *dst, AVFrame *src) {
     return ret;
 }
 /*+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+*/
-int ffwr_create_rawframe(FFWR_AvFrame **dst, AVFrame *src) {
+int ffwr_create_rawvframe(FFWR_VFrame **dst, AVFrame *src) {
     int ret = 0;
-    FFWR_AvFrame *tmp = 0;
+    FFWR_VFrame *tmp = 0;
     int total = 0;
     int len = 0;
     int k = 0;
@@ -723,8 +723,7 @@ int ffwr_create_rawframe(FFWR_AvFrame **dst, AVFrame *src) {
         tmp = *dst;
         if(src->format == 0) {
             len = ffwr_get_rawsize_vframe(src);
-            total = sizeof(FFWR_AvFrame) + len;
-            //total += len + PADDING_MEMORY;
+            total = sizeof(FFWR_VFrame) + len;
             if(!tmp) {    
                 tmp = malloc(total);
                 if(!tmp) {
@@ -738,7 +737,6 @@ int ffwr_create_rawframe(FFWR_AvFrame **dst, AVFrame *src) {
                 ffwr_fill_vframe(tmp, src);
             }
             *dst = tmp;
-            //ffwr_update_vframe(dst, src);  
             break;
         }
     } while(0);
