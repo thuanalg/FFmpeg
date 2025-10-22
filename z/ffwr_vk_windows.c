@@ -92,6 +92,7 @@ struct SwrContext *gb_aConvertContext;
 AVFrame *gb_dst_draw;
 AVFrame *gb_src_draw;
 pthread_mutex_t gb_FRAME_MTX = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t gb_AFRAME_MTX = PTHREAD_MUTEX_INITIALIZER;
 FFWR_INSTREAM gb_instream;
 FFWR_VFrame *gb_transfer_avframe = 0;
 ffwr_gen_data_st *gb_frame;
@@ -538,6 +539,22 @@ void *demux_routine(void *arg) {
 		    	break;
 		    }  
             convert_audio_frame(gb_instream.a_frame, &(gb_instream.a_dstframe));
+            pthread_mutex_lock(&gb_AFRAME_MTX);
+            do {
+                if(gb_shared_astream->range > 
+                    gb_shared_astream->pl + 
+                    gb_instream.a_dstframe->linesize[0]) 
+                {
+                    memcpy(gb_shared_astream->data + gb_shared_astream->pl, 
+                        gb_instream.a_dstframe->data[0], 
+                        gb_instream.a_dstframe->linesize[0]
+                    );
+                } else {
+                    gb_shared_astream->pl = 0;
+                    gb_shared_astream->pc = 0;
+                }
+            } while(0);
+            pthread_mutex_unlock(&gb_AFRAME_MTX);
             spl_vframe(gb_instream.a_dstframe);
             av_frame_unref(gb_instream.a_dstframe); 
             av_frame_unref(gb_instream.a_frame);   
@@ -966,9 +983,7 @@ void fwr_open_audio_output_cb(void *user, Uint8 * stream, int len)
     if(!obj) {
         return;
     }
-    while(1) {
 
-    }
 }                                            
 //ffwr_araw_stream *gb_shared_astream;
 //ffwr_araw_stream *gb_shared_astream;
