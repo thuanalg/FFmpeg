@@ -43,6 +43,8 @@ typedef struct __FFWR_GENERIC_DATA__ {
 	char data[0]; /*Generic data */
 } ffwr_gen_data_st;
 
+#define ffwr_araw_stream                ffwr_gen_data_st
+
 typedef struct {
     int total;
     int type;    
@@ -95,6 +97,9 @@ FFWR_VFrame *gb_transfer_avframe = 0;
 ffwr_gen_data_st *gb_frame;
 ffwr_gen_data_st *gb_tsplanVFrame;
 int scan_all_pmts_set;
+ffwr_araw_stream *gb_shared_astream;
+ffwr_araw_stream *gb_in_astream;
+SDL_AudioSpec gb_want;
 /*+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+*/
 static void set_sdl_yuv_conversion_mode(AVFrame *frame);
 int ffwr_fill_vframe(FFWR_VFrame *dst, AVFrame *src);
@@ -944,3 +949,80 @@ AVFilterGraph + các filter contexts + push/pop frame từ filtergraph.
 SDL_PauseAudio(1); // stop audio
 SDL_CloseAudio();  // close, free resources
 #endif
+#define FFWR_AUDIO_BUF          (1024 * 1024 * 2)
+#define ffwr_malloc(__nn__, __obj__, __type__)                                 \
+	{                                                                      \
+		(__obj__) = (__type__ *)malloc(__nn__);                        \
+		if (__obj__) {                                                 \
+			spllog(0, "[MEM] Malloc: 0x%p.", (__obj__));           \
+			memset((__obj__), 0, (__nn__));                        \
+		} else {                                                       \
+			spllog(0, "Malloc: error.");                           \
+		}                                                              \
+	}
+void fwr_open_audio_output_cb(void *user, Uint8 * stream, int len)
+{
+    ffwr_gen_data_st *obj = (ffwr_gen_data_st*) user;
+    if(!obj) {
+        return;
+    }
+    while(1) {
+
+    }
+}                                            
+//ffwr_araw_stream *gb_shared_astream;
+//ffwr_araw_stream *gb_shared_astream;
+//ffwr_araw_stream *gb_in_astream;
+int init_gen_buff(ffwr_gen_data_st *obj, int sz);
+int fwr_open_audio_output(int sz)
+{
+    int ret = 0;
+    do {
+        ffwr_malloc(sz, gb_shared_astream, ffwr_araw_stream);
+        if(!gb_shared_astream) {
+            ret = 1;
+            break;
+        }
+        init_gen_buff(gb_shared_astream, sz);
+        ffwr_malloc(sz, gb_in_astream, ffwr_araw_stream);
+        if(!gb_in_astream) {
+            ret = 1;
+            break;
+        }        
+        init_gen_buff(gb_in_astream, sz);
+
+        gb_want.freq = 48000;
+        gb_want.format = AUDIO_F32SYS;
+        gb_want.channels = 2;
+        gb_want.samples = 1024;        // kích thước buffer SDL
+        gb_want.callback = fwr_open_audio_output_cb;
+        gb_want.userdata = gb_in_astream; // buffer chuẩn hóa của bạn
+
+        ret = SDL_OpenAudio(&gb_want, NULL);
+        SDL_PauseAudio(0);           // start audio playback
+    } while(0);
+}
+
+int fwr_clode_audio_output() {
+    int ret = 0;
+    do {
+        SDL_PauseAudio(1); // stop audio
+        SDL_CloseAudio();  // close, free resources
+    } while(0);
+    return ret;
+}
+
+int init_gen_buff(ffwr_gen_data_st *obj, int sz) {
+    int ret = 0;
+    ffwr_gen_data_st *tmp = 0;
+    do {
+        if(!obj) {
+            ret = 1;
+            break;
+        }
+        obj->total = sz;
+        obj->range = sz - sizeof(ffwr_gen_data_st);
+        obj->pl = obj->pc = 0;
+    } while(0);
+    return ret;
+}
