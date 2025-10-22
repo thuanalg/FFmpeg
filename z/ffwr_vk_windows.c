@@ -249,8 +249,7 @@ int main (int argc, char *argv[])
 	int running = 1;
 	SDL_Event e = {0};
     pthread_t thread_id = 0;
-    FFWR_AvFrame *p = 0, *p2 = 0;
-    int frame_ready = 0;
+    FFWR_AvFrame *p = 0;
     SDL_Texture *gb_texture = NULL;
     FFWR_SIZE_TYPE *it = 0;
      int step = 0;
@@ -339,76 +338,62 @@ int main (int argc, char *argv[])
     while (running) {
         it = 0;
         p = 0;
-        frame_ready = 0;
+        
         while (SDL_PollEvent(&e)) {
             if (e.type == SDL_QUIT) {
                 running = 0;
             }
         }
-
-#if 0
-        SDL_SetRenderDrawColor(ren, 0, 128, 255, 255); // blue
-        SDL_RenderClear(ren);
-        SDL_RenderPresent(ren);
-#endif
-       
-        if(gb_frame->pl < 1) {
+        if(gb_frame->pl < 1) 
+        {
             pthread_mutex_lock(&gb_FRAME_MTX);
             do {           
-                if(!gb_tsplanVFrame) {
-                    break;
-                }
-                if(!gb_frame) {
-                    break;
-                }  
-                if (gb_tsplanVFrame->pl <= gb_tsplanVFrame->pc) {
+                if (gb_tsplanVFrame->pl <= gb_tsplanVFrame->pc)
+                {
                     break;
                 }          
-                if(step < 20) {
-                    step++;
-                    gb_frame->pl = gb_frame->pc = 0;
-                    gb_tsplanVFrame->pl = gb_tsplanVFrame->pc = 0;
-                    break;
+                if(step < 1) 
+                {
+                    if(gb_tsplanVFrame->pl > 0) 
+                    {
+                        step++;
+                        gb_frame->pl = gb_frame->pc = 0;
+                        gb_tsplanVFrame->pl = gb_tsplanVFrame->pc = 0;
+                        break;
+                    }
                 }               
-                if(gb_tsplanVFrame->pl > 0) {
-                    memcpy(gb_frame->data + gb_frame->pl, 
-                        gb_tsplanVFrame->data + gb_tsplanVFrame->pc,
-                        gb_tsplanVFrame->pl - gb_tsplanVFrame->pc);
+                memcpy(gb_frame->data + gb_frame->pl, 
+                    gb_tsplanVFrame->data + gb_tsplanVFrame->pc,
+                    gb_tsplanVFrame->pl - gb_tsplanVFrame->pc);
 
-                    gb_frame->pl += gb_tsplanVFrame->pl - gb_tsplanVFrame->pc;
-                    gb_tsplanVFrame->pl = gb_tsplanVFrame->pc = 0;
-                    frame_ready = 1;
-                }
+                gb_frame->pl += gb_tsplanVFrame->pl - gb_tsplanVFrame->pc;
+                gb_tsplanVFrame->pl = gb_tsplanVFrame->pc = 0;
+
             } while(0);
             pthread_mutex_unlock(&gb_FRAME_MTX);
         }
 
 
-        if(gb_frame->pl <= gb_frame->pc) {
+        if(gb_frame->pl <= gb_frame->pc) 
+        {
             gb_frame->pl = gb_frame->pc = 0;
-            continue;
-        } else {
-            it = (FFWR_SIZE_TYPE *) (gb_frame->data + gb_frame->pc);
-            frame_ready = 1;
-        }
-       
-        if(!frame_ready) {
             SDL_Delay(10);
             continue;
-        }
+        } 
 
+        it = (FFWR_SIZE_TYPE *) (gb_frame->data + gb_frame->pc);
+        p = (FFWR_AvFrame *)(gb_frame->data + gb_frame->pc);
+       
         if(!gb_texture) {
             gb_texture = SDL_CreateTexture( ren,
                 SDL_PIXELFORMAT_IYUV,
                 SDL_TEXTUREACCESS_STREAMING,
-                640,
-                480);
+                640, 480);
         }
         if(!gb_texture) {
             exit(1);
         }
-        p = (FFWR_AvFrame *)(gb_frame->data + gb_frame->pc);
-
+        
         SDL_UpdateYUVTexture( gb_texture, NULL,
             p->data + p->pos[0], p->linesize[0],
             p->data + p->pos[1], p->linesize[1],
@@ -420,10 +405,10 @@ int main (int argc, char *argv[])
         SDL_RenderClear(ren);
         SDL_RenderCopy(ren, gb_texture, NULL, NULL);
         SDL_RenderPresent(ren);
-        if(it)
+        if(it) {
             gb_frame->pc += it->total;
+        }
         SDL_Delay(30);
-        
     }
 
     SDL_DestroyRenderer(ren);
