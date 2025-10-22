@@ -977,9 +977,12 @@ SDL_CloseAudio();  // close, free resources
 			spllog(0, "Malloc: error.");                           \
 		}                                                              \
 	}
+#define FFWR_MIN(__a__, __b__)  ((__a__) < (__b__)) ? (__a__) : (__b__)
+
 void fwr_open_audio_output_cb(void *user, Uint8 * stream, int len)
 {
     ffwr_gen_data_st *obj = (ffwr_gen_data_st*) user;
+    int real_len = 0;
     if(!obj) {
         return;
     }
@@ -997,9 +1000,21 @@ void fwr_open_audio_output_cb(void *user, Uint8 * stream, int len)
                 gb_shared_astream->pl);
 
             obj->pl = gb_shared_astream->pl;
+            gb_shared_astream->pc = 0;
+            gb_shared_astream->pl = 0;
         } while(0);
         pthread_mutex_unlock(&gb_AFRAME_MTX);
     }
+    real_len = FFWR_MIN(len, obj->pl - obj->pc);
+    if(real_len < 1) {
+         memset(stream , 0, len);
+        return;
+    }
+    if (real_len < len) {
+        memset(stream + real_len, 0, len - real_len);
+    }
+    memcpy(stream, obj->data + obj->pc, real_len);
+    obj->pc += real_len;
 }                                            
 //ffwr_araw_stream *gb_shared_astream;
 //ffwr_araw_stream *gb_shared_astream;
