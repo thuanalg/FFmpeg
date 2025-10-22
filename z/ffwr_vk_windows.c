@@ -26,6 +26,7 @@ HWND gb_sdlWindow = 0;
 /*+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+*/
 #define MEMORY_PADDING      2
 #define FFWR_BUFF_SIZE      12000000
+#define FFWR_OUTPUT_ARATE   48000
 /*+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+*/
 typedef enum {
     FFWR_DTYPE_VFRAME,
@@ -85,6 +86,7 @@ typedef struct __FFWR_INSTREAM__ {
 } FFWR_INSTREAM;
 #endif
 /*+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+*/
+struct SwrContext *gb_aConvertContext;
 AVFrame *gb_dst_draw;
 AVFrame *gb_src_draw;
 pthread_mutex_t gb_FRAME_MTX = PTHREAD_MUTEX_INITIALIZER;
@@ -100,7 +102,8 @@ int ffwr_update_vframe(FFWR_VFrame **dst, AVFrame *src);
 int ffwr_create_rawvframe(FFWR_VFrame **dst, AVFrame *src);
 int ffwr_convert_vframe(AVFrame *src, AVFrame *dst);
 int ffwr_open_input(FFWR_INSTREAM *pinput, char *name, int mode);
-
+int ffwr_create_a_swrContext(AVFrame *src, AVFrame *dst);
+int convert_audio_frame( AVFrame *src, AVFrame **outfr);
 /*+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+*/
 
 int ffwr_open_input(FFWR_INSTREAM *pinput, char *name, int mode) 
@@ -237,9 +240,9 @@ int ffwr_open_input(FFWR_INSTREAM *pinput, char *name, int mode)
 /*+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+*/
 void *demux_routine(void *arg);
 #ifndef UNIX_LINUX
-int WinMain (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd)
+int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd)
 #else
-int main (int argc, char *argv[])
+int main(int argc, char *argv[])
 #endif
 {	
 	int ret = 0;
@@ -259,8 +262,12 @@ int main (int argc, char *argv[])
 	snprintf(input.folder, SPL_PATH_FOLDER, "%s", cfgpath);
 	snprintf(input.id_name, 100, "vk_window");
 	ret = spl_init_log_ext(&input);
+
+    if(ret) {
+        exit(1);
+    }    
     avdevice_register_all();
-    
+
     gb_tsplanVFrame = malloc(FFWR_BUFF_SIZE);
     if(!gb_tsplanVFrame) {
         exit(1);
@@ -525,7 +532,11 @@ void *demux_routine(void *arg) {
 		    if (result < 0) {
 		    	break;
 		    }  
-            av_frame_unref(gb_instream.a_frame);          
+            convert_audio_frame(gb_instream.a_frame, &(gb_instream.a_dstframe));
+            spl_vframe(gb_instream.a_dstframe);
+            av_frame_unref(gb_instream.a_dstframe); 
+            av_frame_unref(gb_instream.a_frame);   
+                     
         }    
     }
     
@@ -743,4 +754,166 @@ int ffwr_create_rawvframe(FFWR_VFrame **dst, AVFrame *src) {
     return ret;
 }
 /*+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+*/
+int convert_audio_frame( AVFrame *src, AVFrame **outfr)
+{
+    //gb_instream
+    int ret = 0;
+    AVChannelLayout *src_layout = 0;
+    int n = 0;
+    AVFrame *dst = 0;
+    do {
+        if(!src) {
+            ret = 1;
+            break;
+        }    
+        if(!outfr) {
+            ret = 1;
+            break;
+        }
+        dst = *outfr;
+        if(!dst) {
+            dst = av_frame_alloc();
+            if(!dst) {
+                break;
+            }
+          
+        }
 
+        av_channel_layout_default(&dst->ch_layout, 2);
+        dst->format = AV_SAMPLE_FMT_FLT;
+        dst->sample_rate = FFWR_OUTPUT_ARATE;  
+
+        if(!gb_aConvertContext) {
+            ret = ffwr_create_a_swrContext(src, dst);
+            if(ret) {
+                break;
+            }
+        }
+        if(!gb_instream.a_cctx) {
+            ret = 1;
+            break;            
+        }
+        src_layout = &(gb_instream.a_cctx->ch_layout);
+        if(!src_layout) {
+            ret = 1;
+            break;                    
+        }
+
+        dst->nb_samples = av_rescale_rnd(
+            swr_get_delay(gb_aConvertContext, 
+                src->sample_rate) + src->nb_samples, 
+                FFWR_OUTPUT_ARATE, src->sample_rate, AV_ROUND_UP);
+
+        n = av_frame_get_buffer(dst, 0);
+	    if (n < 0) {
+	    	spllog(4, "Error: cannot allocate dst buffer (%d)\n", n);
+            ret = 1;
+	    	break;
+	    }
+        av_channel_layout_copy(&(dst->ch_layout), src_layout);
+	    n = swr_convert(gb_aConvertContext, dst->data, dst->nb_samples,
+	        (const uint8_t **)src->data, src->nb_samples);
+	    if (ret < 0) {
+	    	spllog(4, " Error: swr_convert failed (%d)\n", ret);
+            ret = 1;
+	    	break;
+	    }
+
+	    dst->nb_samples = n;
+	    spllog(1, "Audio convert done: %d samples -> %d samples\n",
+	        src->nb_samples, dst->nb_samples);
+        dst->pts = src->pts;
+        *outfr = dst;
+
+    } while(0);
+
+
+	return ret;
+}
+/*+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+*/
+
+
+int ffwr_create_a_swrContext(AVFrame *src, AVFrame *dst)
+{
+    int ret = 0;
+    SwrContext *swr = 0;
+    do {
+        if(!src) {
+            ret = 1;
+            break;
+        }
+        if(!dst) {
+            ret = 1;
+            break;
+        }        
+        swr_alloc_set_opts2(
+                &swr,                        // NULL → tạo mới
+                &(dst->ch_layout),         // kênh đầu ra
+                dst->format,          // định dạng sample đầu ra
+                dst->sample_rate,                       // sample rate đầu ra
+                &(src->ch_layout),           // kênh đầu vào
+                src->format,           // định dạng sample đầu vào
+                src->sample_rate,                       // sample rate đầu vào
+                0, NULL                      // log offset, log context
+            );        
+        if(!swr) {
+            ret = 1;
+            break;
+        }
+        ret = swr_init(swr);
+        if(ret < 0) {
+            ret = 1;
+            break;
+        }
+
+        gb_aConvertContext = swr;
+
+    } while(0);
+    return ret;
+}
+#if 0
+int main() {
+    // Tạo mới và thiết lập SwrContext
+    SwrContext *swr = swr_alloc_set_opts2(
+        NULL,                       // NULL → tạo mới
+        AV_CH_LAYOUT_STEREO,         // kênh đầu ra
+        AV_SAMPLE_FMT_FLTP,          // định dạng sample đầu ra
+        44100,                       // sample rate đầu ra
+        AV_CH_LAYOUT_MONO,           // kênh đầu vào
+        AV_SAMPLE_FMT_S16,           // định dạng sample đầu vào
+        48000,                       // sample rate đầu vào
+        0, NULL                      // log offset, log context
+    );
+
+    if (!swr || swr_init(swr) < 0) {
+        fprintf(stderr, "Không thể khởi tạo SwrContext\n");
+        return -1;
+    }
+
+    // ... sử dụng swr_convert() để chuyển đổi âm thanh ...
+
+    swr_free(&swr); // giải phóng khi xong
+    return 0;
+}
+    #include <libswresample/swresample.h>
+
+SwrContext *swr = swr_alloc();
+if (!swr) {
+    fprintf(stderr, "Could not allocate SwrContext\n");
+    return -1;
+}
+
+// Thiết lập các thông số sau đó
+av_opt_set_int(swr, "in_channel_layout",  AV_CH_LAYOUT_MONO, 0);
+av_opt_set_int(swr, "out_channel_layout", AV_CH_LAYOUT_STEREO, 0);
+av_opt_set_int(swr, "in_sample_rate",     48000, 0);
+av_opt_set_int(swr, "out_sample_rate",    44100, 0);
+av_opt_set_sample_fmt(swr, "in_sample_fmt",  AV_SAMPLE_FMT_S16, 0);
+av_opt_set_sample_fmt(swr, "out_sample_fmt", AV_SAMPLE_FMT_FLTP, 0);
+
+// Khởi tạo SwrContext
+if (swr_init(swr) < 0) {
+    fprintf(stderr, "Failed to initialize SwrContext\n");
+}
+
+#endif
