@@ -28,11 +28,11 @@ HWND gb_sdlWindow = 0;
 #define MEMORY_PADDING   2
 
 typedef enum {
-    FFWR_FRAME,
-    FFWR_PACKET,
+    FFWR_DTYPE_VFRAME,
+    FFWR_DTYPE_PACKET,
 
-    FFWR_END
-} FFWR_DATA_TYPE;
+    FFWR_DTYPE_END
+} FFWR_DATA_TYPE_E;
 
 typedef struct __FFWR_GENERIC_DATA__ {
 	int total; /*Total size*/
@@ -650,7 +650,7 @@ int ffwr_update_vframe(FFWR_AvFrame **dst, AVFrame *src) {
             }
         }
         tmp->tt_sz.total = total;
-        tmp->tt_sz.type = FFWR_FRAME;
+        tmp->tt_sz.type = FFWR_DTYPE_VFRAME;
         ret = ffwr_fill_vframe(tmp, src);
         *dst = tmp;
     } while(0);
@@ -723,7 +723,7 @@ int ffwr_create_rawframe(FFWR_AvFrame **dst, AVFrame *src) {
         tmp = *dst;
         if(src->format == 0) {
             len = ffwr_get_rawsize_vframe(src);
-            total = sizeof(FFWR_FRAME) + len;
+            total = sizeof(FFWR_AvFrame) + len;
             //total += len + PADDING_MEMORY;
             if(!tmp) {    
                 tmp = malloc(total);
@@ -734,7 +734,7 @@ int ffwr_create_rawframe(FFWR_AvFrame **dst, AVFrame *src) {
                 memset(tmp, 0, total);
 
                 tmp->tt_sz.total = total;
-                tmp->tt_sz.type = FFWR_FRAME;
+                tmp->tt_sz.type = FFWR_DTYPE_VFRAME;
                 ffwr_fill_vframe(tmp, src);
             }
             *dst = tmp;
