@@ -983,7 +983,23 @@ void fwr_open_audio_output_cb(void *user, Uint8 * stream, int len)
     if(!obj) {
         return;
     }
+    if( obj->pl <= obj->pc) 
+    {
+        obj->pl = obj->pc = 0;
+        pthread_mutex_lock(&gb_AFRAME_MTX);
+        do {
+            if(gb_shared_astream->pl < 1) {
+                break;
+            }
 
+            memcpy(obj->data + obj->pc, 
+                gb_shared_astream->data, 
+                gb_shared_astream->pl);
+
+            obj->pl = gb_shared_astream->pl;
+        } while(0);
+        pthread_mutex_unlock(&gb_AFRAME_MTX);
+    }
 }                                            
 //ffwr_araw_stream *gb_shared_astream;
 //ffwr_araw_stream *gb_shared_astream;
