@@ -135,6 +135,8 @@ int fwr_open_audio_output(int sz);
 int fwr_clode_audio_output();
 void ffwr_clear_gb_var();
 int init_gen_buff(ffwr_gen_data_st *obj, int sz);
+int ffwr_set_running(int v);
+int ffwr_get_running();
 /*+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+*/
 
 int ffwr_open_input(FFWR_INSTREAM *pinput, char *name, int mode) 
@@ -463,7 +465,8 @@ int main(int argc, char *argv[])
         }
         SDL_Delay(30);
     }
-
+    ffwr_set_running(0);
+    SDL_Delay(100);
     SDL_DestroyRenderer(ren);
     SDL_DestroyWindow(win);
     SDL_Quit();
@@ -478,6 +481,7 @@ void *demux_routine(void *arg) {
     int result = 0;
     AVFrame *tmp = 0;
     FFWR_VFrame *ffwr_vframe = 0;
+    int runnung = 0;
     
     ret = ffwr_open_input(&gb_instream, 
         "tcp://127.0.0.1:12345", 0);
@@ -502,6 +506,10 @@ void *demux_routine(void *arg) {
     av_frame_get_buffer(gb_instream.vframe, 32);       
 
     while(1) {
+        runnung = ffwr_get_running();
+        if(!runnung) {
+            break;
+        }
         av_packet_unref(&(gb_instream.pkt));
         result = av_read_frame(gb_instream.fmt_ctx, &(gb_instream.pkt)); 
         if(result) {
@@ -1172,3 +1180,19 @@ void ffwr_clear_gb_var() {
     ffwr_free(gb_in_astream);
 }
 /*+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+*/
+
+int gb_running = 1;
+int ffwr_set_running(int v) {
+    pthread_mutex_lock(&gb_FRAME_MTX);
+        gb_running = v;
+    pthread_mutex_unlock(&gb_FRAME_MTX);
+    return 0;
+}
+
+int ffwr_get_running() {
+    int ret = 0;
+    pthread_mutex_lock(&gb_FRAME_MTX);
+        ret = gb_running;
+    pthread_mutex_unlock(&gb_FRAME_MTX);
+    return ret;;
+}
