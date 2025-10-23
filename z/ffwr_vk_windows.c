@@ -110,6 +110,7 @@ int ffwr_convert_vframe(AVFrame *src, AVFrame *dst);
 int ffwr_open_input(FFWR_INSTREAM *pinput, char *name, int mode);
 int ffwr_create_a_swrContext(AVFrame *src, AVFrame *dst);
 int convert_audio_frame( AVFrame *src, AVFrame **outfr);
+int fwr_open_audio_output(int sz);
 /*+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+*/
 
 int ffwr_open_input(FFWR_INSTREAM *pinput, char *name, int mode) 
@@ -302,8 +303,10 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    ret = pthread_create(&thread_id, 0,
-                                  demux_routine, 0);
+    fwr_open_audio_output( 3000000);
+
+    ret = pthread_create(
+        &thread_id, 0, demux_routine, 0);
 #if 0
     win = SDL_CreateWindow(
         "SDL2 Window",            // title
@@ -357,7 +360,7 @@ int main(int argc, char *argv[])
 
     av_frame_get_buffer(gb_src_draw, 32);    
 
-    // main loop
+    
     while (running) {
         it = 0;
         p = 0;
@@ -493,21 +496,21 @@ void *demux_routine(void *arg) {
             spl_vframe(gb_instream.vframe);
             if(!ffwr_vframe) {
                 ffwr_create_rawvframe(&ffwr_vframe, gb_instream.vframe);
+                if(!ffwr_vframe) {
+                    break;
+                }                  
             }
             else {
                 ffwr_update_vframe(&ffwr_vframe, gb_instream.vframe);
+            } 
+            if(ffwr_vframe->tt_sz.total < 1) {
+                break;
+            }  
+            if(!gb_tsplanVFrame) {
+                break;
             }
             pthread_mutex_lock(&gb_FRAME_MTX);
             do {
-                if(!gb_tsplanVFrame) {
-                    break;
-                }
-                if(!ffwr_vframe) {
-                    break;
-                }  
-                if(ffwr_vframe->tt_sz.total < 1) {
-                    break;
-                }    
                 if(gb_tsplanVFrame->range > 
                     gb_tsplanVFrame->pl + ffwr_vframe->tt_sz.total) {                      
                     memcpy(gb_tsplanVFrame->data + gb_tsplanVFrame->pl, 
@@ -549,10 +552,14 @@ void *demux_routine(void *arg) {
                         gb_instream.a_dstframe->data[0], 
                         gb_instream.a_dstframe->linesize[0]
                     );
+                    gb_shared_astream->pl += 
+                        gb_instream.a_dstframe->linesize[0];
                 } else {
                     gb_shared_astream->pl = 0;
                     gb_shared_astream->pc = 0;
                 }
+                    spllog(1, "(pl, pc)=(%d, %d)", 
+                        gb_shared_astream->pl, gb_shared_astream->pc);
             } while(0);
             pthread_mutex_unlock(&gb_AFRAME_MTX);
             spl_vframe(gb_instream.a_dstframe);
@@ -895,7 +902,7 @@ int ffwr_create_a_swrContext(AVFrame *src, AVFrame *dst)
 #if 0
 Bước 1:
 SDL_AudioSpec want;
-want.freq = 48000;           // sample rate output
+want.freq = FFWR_OUTPUT_ARATE;           // sample rate output
 want.format = AUDIO_F32SYS;  // float 32-bit
 want.channels = 2;           // stereo
 want.samples = 1024;         // buffer size
@@ -986,6 +993,7 @@ void fwr_open_audio_output_cb(void *user, Uint8 * stream, int len)
     if(!obj) {
         return;
     }
+
     if( obj->pl <= obj->pc) 
     {
         obj->pl = obj->pc = 0;
@@ -1005,9 +1013,13 @@ void fwr_open_audio_output_cb(void *user, Uint8 * stream, int len)
         } while(0);
         pthread_mutex_unlock(&gb_AFRAME_MTX);
     }
+
+    spllog(1, "(pl, pc, st, len)=(%d, %d, 0x%p, %d)", 
+        obj->pl, obj->pc, stream, len);
+
     real_len = FFWR_MIN(len, obj->pl - obj->pc);
     if(real_len < 1) {
-         memset(stream , 0, len);
+        memset(stream , 0, len);
         return;
     }
     if (real_len < len) {
@@ -1037,14 +1049,15 @@ int fwr_open_audio_output(int sz)
         }        
         init_gen_buff(gb_in_astream, sz);
 
-        gb_want.freq = 48000;
+        gb_want.freq = FFWR_OUTPUT_ARATE;
         gb_want.format = AUDIO_F32SYS;
         gb_want.channels = 2;
         gb_want.samples = 1024;        // kích thước buffer SDL
         gb_want.callback = fwr_open_audio_output_cb;
         gb_want.userdata = gb_in_astream; // buffer chuẩn hóa của bạn
 
-        ret = SDL_OpenAudio(&gb_want, NULL);
+        ret = SDL_OpenAudio(&gb_want, 0);
+        spllog(1, "ret-SDL_OpenAudio: %d", ret);
         SDL_PauseAudio(0);           // start audio playback
     } while(0);
 }
