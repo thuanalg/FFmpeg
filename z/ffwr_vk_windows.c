@@ -610,19 +610,42 @@ void *demux_routine(void *arg) {
         }    
     }
 
-    ffwr_frame_free(&(gb_instream.vframe));
-    gb_instream.vframe = 0;
-    ffwr_frame_free(&(gb_instream.a_dstframe)); 
-    gb_instream.a_dstframe = 0;
-    ffwr_frame_free(&(gb_instream.a_frame));   
-    gb_instream.a_frame = 0;
-    ffwr_frame_free(&tmp);
-    tmp = 0;
+    if(gb_instream.vframe) {
+        ffwr_frame_free(&(gb_instream.vframe));
+        gb_instream.vframe = 0;
+    }
+    if(gb_instream.a_dstframe) {
+        ffwr_frame_free(&(gb_instream.a_dstframe)); 
+        gb_instream.a_dstframe = 0;
+    }
+    if(gb_instream.a_frame) {
+        ffwr_frame_free(&(gb_instream.a_frame));   
+        gb_instream.a_frame = 0;
+    }
+    if(tmp) {
+        ffwr_frame_free(&tmp);
+        tmp = 0;
+    }
     
-
     ffwr_packet_unref(&(gb_instream.pkt));
-
     ffwr_free(ffwr_vframe);
+
+    if(gb_instream.vscale) {
+        sws_freeContext(gb_instream.vscale);
+        gb_instream.vscale = 0;
+    }
+    if(gb_aConvertContext) {
+        swr_free(&gb_aConvertContext);
+        gb_aConvertContext = 0;
+    }
+    
+    avcodec_free_context(&(gb_instream.v_cctx));
+    gb_instream.v_cctx = 0;
+    avcodec_free_context(&(gb_instream.a_cctx));
+    gb_instream.a_cctx = 0;
+    avformat_close_input(&(gb_instream.fmt_ctx));
+    gb_instream.fmt_ctx = 0;
+    
     return 0;
 }
 
