@@ -48,6 +48,8 @@ HWND gb_sdlWindow = 0;
 		}                                                              \
 	}
 #define ffwr_frame_unref(__fr__) if(__fr__) {av_frame_unref(__fr__);}
+#define ffwr_frame_free(__fr__) if(__fr__) {av_frame_free(__fr__);}
+#define ffwr_packet_unref(__pkt__) if(__pkt__) {av_packet_unref(__pkt__);}
 /*+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+*/
 typedef enum {
     FFWR_DTYPE_VFRAME,
@@ -608,12 +610,17 @@ void *demux_routine(void *arg) {
         }    
     }
 
-    ffwr_frame_unref(gb_instream.vframe);
-    ffwr_frame_unref(gb_instream.a_dstframe); 
-    ffwr_frame_unref(gb_instream.a_frame);   
-    ffwr_frame_unref(tmp);
+    ffwr_frame_free(&(gb_instream.vframe));
+    gb_instream.vframe = 0;
+    ffwr_frame_free(&(gb_instream.a_dstframe)); 
+    gb_instream.a_dstframe = 0;
+    ffwr_frame_free(&(gb_instream.a_frame));   
+    gb_instream.a_frame = 0;
+    ffwr_frame_free(&tmp);
+    tmp = 0;
+    
 
-    av_packet_unref(&(gb_instream.pkt));
+    ffwr_packet_unref(&(gb_instream.pkt));
 
     ffwr_free(ffwr_vframe);
     return 0;
