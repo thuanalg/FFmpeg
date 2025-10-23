@@ -303,7 +303,7 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    fwr_open_audio_output( 3000000);
+    fwr_open_audio_output( 2000000);
 
     ret = pthread_create(
         &thread_id, 0, demux_routine, 0);
@@ -557,9 +557,12 @@ void *demux_routine(void *arg) {
                 } else {
                     gb_shared_astream->pl = 0;
                     gb_shared_astream->pc = 0;
+                    spllog(1, "over audio range");
                 }
-                    spllog(1, "(pl, pc)=(%d, %d)", 
-                        gb_shared_astream->pl, gb_shared_astream->pc);
+                spllog(1, "(pl, pc, range)=(%d, %d, %d)", 
+                    gb_shared_astream->pl, 
+                    gb_shared_astream->pc, 
+                    gb_shared_astream->range);
             } while(0);
             pthread_mutex_unlock(&gb_AFRAME_MTX);
             spl_vframe(gb_instream.a_dstframe);
@@ -990,6 +993,8 @@ void fwr_open_audio_output_cb(void *user, Uint8 * stream, int len)
 {
     ffwr_gen_data_st *obj = (ffwr_gen_data_st*) user;
     int real_len = 0;
+    static int step = 0;
+
     if(!obj) {
         return;
     }
@@ -1002,22 +1007,35 @@ void fwr_open_audio_output_cb(void *user, Uint8 * stream, int len)
             if(gb_shared_astream->pl < 1) {
                 break;
             }
+            if(step == 0) {
+                if(gb_shared_astream->pl > 0) {
+                    step++;
+                    gb_shared_astream->pc = 0;
+                    gb_shared_astream->pl = 0;
+                    break;
+                }
+            }
+            if(gb_shared_astream->pl < 1) {
+                break;
+            }
 
-            memcpy(obj->data + obj->pc, 
+            memcpy(obj->data + obj->pl, 
                 gb_shared_astream->data, 
                 gb_shared_astream->pl);
 
-            obj->pl = gb_shared_astream->pl;
+            obj->pl += gb_shared_astream->pl;
+
             gb_shared_astream->pc = 0;
             gb_shared_astream->pl = 0;
         } while(0);
         pthread_mutex_unlock(&gb_AFRAME_MTX);
     }
-
-    spllog(1, "(pl, pc, st, len)=(%d, %d, 0x%p, %d)", 
-        obj->pl, obj->pc, stream, len);
+    
 
     real_len = FFWR_MIN(len, obj->pl - obj->pc);
+
+
+
     if(real_len < 1) {
         memset(stream , 0, len);
         return;
@@ -1027,6 +1045,32 @@ void fwr_open_audio_output_cb(void *user, Uint8 * stream, int len)
     }
     memcpy(stream, obj->data + obj->pc, real_len);
     obj->pc += real_len;
+ 
+    spllog(1, "(pl, pc, real_len, len)=(%d, %d, %d, %d)", 
+        obj->pl, obj->pc, real_len, len);   
+    if((obj->pc * 2) > obj->pl) {
+        int tlen = obj->pl - obj->pc;
+        if(tlen > 0) {
+            memcpy(obj->data, 
+                obj->data + obj->pc, tlen);
+            obj->pc = 0;
+            obj->pl = tlen;
+            spllog(1, "(pl, pc, real_len, len)=(%d, %d, %d, %d)", 
+                obj->pl, obj->pc, real_len, len); 
+            pthread_mutex_lock(&gb_AFRAME_MTX);
+            do {
+                memcpy(obj->data + obj->pl, 
+                    gb_shared_astream->data, 
+                    gb_shared_astream->pl);
+
+                obj->pl += gb_shared_astream->pl;
+
+                gb_shared_astream->pc = 0;
+                gb_shared_astream->pl = 0;
+            } while(0);
+            pthread_mutex_unlock(&gb_AFRAME_MTX);
+        }
+    }
 }                                            
 //ffwr_araw_stream *gb_shared_astream;
 //ffwr_araw_stream *gb_shared_astream;
@@ -1035,6 +1079,7 @@ int init_gen_buff(ffwr_gen_data_st *obj, int sz);
 int fwr_open_audio_output(int sz)
 {
     int ret = 0;
+    int insz = 3 * sz;
     do {
         ffwr_malloc(sz, gb_shared_astream, ffwr_araw_stream);
         if(!gb_shared_astream) {
@@ -1042,17 +1087,18 @@ int fwr_open_audio_output(int sz)
             break;
         }
         init_gen_buff(gb_shared_astream, sz);
-        ffwr_malloc(sz, gb_in_astream, ffwr_araw_stream);
+
+        ffwr_malloc(insz, gb_in_astream, ffwr_araw_stream);
         if(!gb_in_astream) {
             ret = 1;
             break;
         }        
-        init_gen_buff(gb_in_astream, sz);
+        init_gen_buff(gb_in_astream, insz);
 
         gb_want.freq = FFWR_OUTPUT_ARATE;
         gb_want.format = AUDIO_F32SYS;
         gb_want.channels = 2;
-        gb_want.samples = 1024;        // kích thước buffer SDL
+        gb_want.samples = 2048;        // kích thước buffer SDL
         gb_want.callback = fwr_open_audio_output_cb;
         gb_want.userdata = gb_in_astream; // buffer chuẩn hóa của bạn
 
