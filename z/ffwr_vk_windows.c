@@ -1059,17 +1059,22 @@ void fwr_open_audio_output_cb(void *user, Uint8 * stream, int len)
                 obj->pl, obj->pc, real_len, len); 
             pthread_mutex_lock(&gb_AFRAME_MTX);
             do {
-                memcpy(obj->data + obj->pl, 
-                    gb_shared_astream->data, 
-                    gb_shared_astream->pl);
+                if(obj->range >= obj->pl + gb_shared_astream->pl) {
+                    memcpy(obj->data + obj->pl, 
+                        gb_shared_astream->data, 
+                        gb_shared_astream->pl);
 
-                obj->pl += gb_shared_astream->pl;
+                    obj->pl += gb_shared_astream->pl;
+                }
 
                 gb_shared_astream->pc = 0;
                 gb_shared_astream->pl = 0;
             } while(0);
             pthread_mutex_unlock(&gb_AFRAME_MTX);
         }
+    }
+    if(obj->pl > 800000 + obj->pc) {
+        obj->pl = obj->pc = 0;
     }
 }                                            
 //ffwr_araw_stream *gb_shared_astream;
