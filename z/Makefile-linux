@@ -1,0 +1,15 @@
+LIBS=-L/usr/local/lib
+LIBS+= -lavcodec -lavdevice -lavutil -lavformat -lswscale -lsimplelog -lswresample -lavfilter -lSDL2main -lSDL2
+VK_WSRC=ffwr_vk_windows.c
+
+
+all:
+#	gcc -g -c $(SRC) -o $(LIBTARGET).o $(INC) $(CFLAGS)
+#	gcc -g -shared -o lib$(LIBTARGET).dll $(LIBTARGET).o -Wl,--out-implib,lib$(LIBTARGET).dll.a $(LIBS)
+#	gcc -g -o audio_video_record $(BSRC) -L./ -l$(LIBTARGET) $(LIBS)
+	#gcc -g -o test-mux  mux.c -L./ $(LIBS) ${INC}
+	gcc -g -o ffwr_vk_windows  ${VK_WSRC}  $(LIBS) ${INC}
+#	gcc -g -o ffwr_vk_windows  ${VK_WSRC} -L./ $(LIBS) ${INC} -Dmain=SDL_main
+
+clean:
+	rm -f *.o *.a *.dll audio_video_record test-mux ffwr_vk_windows

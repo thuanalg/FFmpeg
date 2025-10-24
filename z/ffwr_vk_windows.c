@@ -1,5 +1,7 @@
 
-#include <SDL.h>
+#define UNIX_LINUX
+
+#include <SDL2/SDL.h>
 #include <SDL2/SDL_syswm.h>
 #include <stdio.h>
 #include <simplelog.h>
@@ -22,6 +24,7 @@
 #include <windows.h>
 HWND gb_sdlWindow = 0;
 #else
+void *gb_sdlWindow = 0;
 #endif 
 /*+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+*/
 #define MEMORY_PADDING      2
@@ -359,7 +362,12 @@ int main(int argc, char *argv[])
     );
 #endif    
 	SDL_GetWindowWMInfo(win, &info);
+#ifndef UNIX_LINUX    
 	gb_sdlWindow = info.info.win.window;
+#else
+    /*Wyland*/
+    gb_sdlWindow = info.info.wl.egl_window;
+#endif    
     if (!win) {
         spllog(4, "SDL_CreateWindow Error: %s\n", SDL_GetError());
         SDL_Quit();
