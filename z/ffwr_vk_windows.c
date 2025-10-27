@@ -1,7 +1,10 @@
+/*#define UNIX_LINUX*/
+#if 0
+#define UNIX_LINUX
+#endif
 
 
-
-#include <SDL.h>
+#include <SDL2/SDL.h>
 #include <SDL2/SDL_syswm.h>
 #include <stdio.h>
 #include <simplelog.h>
@@ -24,6 +27,7 @@
 #include <windows.h>
 HWND gb_sdlWindow = 0;
 #else
+void *gb_sdlWindow = 0;
 #endif 
 /*+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+*/
 #define MEMORY_PADDING      2
@@ -125,7 +129,12 @@ ffwr_gen_data_st *gb_tsplanVFrame;
 int scan_all_pmts_set;
 ffwr_araw_stream *gb_shared_astream;
 ffwr_araw_stream *gb_in_astream;
+<<<<<<< HEAD
 SDL_AudioSpec gb_want, gb_have;
+=======
+SDL_AudioSpec gb_want;
+char *gb_input_fmt;
+>>>>>>> e45486f71b64a2f19908f18b9e8949eb2873d8a7
 /*+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+*/
 static void set_sdl_yuv_conversion_mode(AVFrame *frame);
 int ffwr_fill_vframe(FFWR_VFrame *dst, AVFrame *src);
@@ -162,7 +171,7 @@ int ffwr_open_input(FFWR_INSTREAM *pinput, char *name, int mode)
     }        
     
 
-        result = avformat_open_input(&(pinput->fmt_ctx), "tcp://127.0.0.1:12345",  iformat, &options);
+        result = avformat_open_input(&(pinput->fmt_ctx), name,  iformat, &options);
 
         if(result < 0) {
             ret = 1;
@@ -299,7 +308,13 @@ int main(int argc, char *argv[])
 	snprintf(input.folder, SPL_PATH_FOLDER, "%s", cfgpath);
 	snprintf(input.id_name, 100, "vk_window");
 	ret = spl_init_log_ext(&input);
-
+#ifndef UNIX_LINUX
+    if(argc > 1)
+#else
+    if(argc > 1) {
+        gb_input_fmt = argv[1];
+    }
+#endif
     if(ret) {
         exit(1);
     }    
@@ -361,7 +376,12 @@ int main(int argc, char *argv[])
     );
 #endif    
 	SDL_GetWindowWMInfo(win, &info);
+#ifndef UNIX_LINUX    
 	gb_sdlWindow = info.info.win.window;
+#else
+    /*Wyland*/
+    gb_sdlWindow = info.info.wl.egl_window;
+#endif    
     if (!win) {
         spllog(4, "SDL_CreateWindow Error: %s\n", SDL_GetError());
         SDL_Quit();
@@ -488,7 +508,7 @@ void *demux_routine(void *arg) {
     int runnung = 0;
     
     ret = ffwr_open_input(&gb_instream, 
-        "tcp://127.0.0.1:12345", 0);
+        gb_input_fmt, 0);
     if(ret) {
         return 0;
     }
@@ -581,14 +601,16 @@ void *demux_routine(void *arg) {
 		    if (result < 0) {
 		    	break;
 		    }  
-            convert_audio_frame(gb_instream.a_frame, &(gb_instream.a_dstframe));
+            convert_audio_frame(gb_instream.a_frame, 
+                &(gb_instream.a_dstframe));
             pthread_mutex_lock(&gb_AFRAME_MTX);
             do {
                 if(gb_shared_astream->range > 
                     gb_shared_astream->pl + 
                     gb_instream.a_dstframe->linesize[0]) 
                 {
-                    memcpy(gb_shared_astream->data + gb_shared_astream->pl, 
+                    memcpy(gb_shared_astream->data + 
+                            gb_shared_astream->pl, 
                         gb_instream.a_dstframe->data[0], 
                         gb_instream.a_dstframe->linesize[0]
                     );
