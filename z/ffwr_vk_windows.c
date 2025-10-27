@@ -123,7 +123,7 @@ ffwr_gen_data_st *gb_tsplanVFrame;
 int scan_all_pmts_set;
 ffwr_araw_stream *gb_shared_astream;
 ffwr_araw_stream *gb_in_astream;
-SDL_AudioSpec gb_want;
+SDL_AudioSpec gb_want, gb_have;
 /*+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+*/
 static void set_sdl_yuv_conversion_mode(AVFrame *frame);
 int ffwr_fill_vframe(FFWR_VFrame *dst, AVFrame *src);
@@ -328,7 +328,7 @@ int main(int argc, char *argv[])
 
     ret = avformat_network_init();
 
-	ret = SDL_Init(SDL_INIT_VIDEO);
+	ret = SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO) ;
     if (ret) {
         spllog(4, "SDL_Init Error: %s\n", SDL_GetError());
         return 1;
@@ -1169,13 +1169,21 @@ int fwr_open_audio_output(int sz)
         gb_want.freq = FFWR_OUTPUT_ARATE;
         gb_want.format = AUDIO_F32SYS;
         gb_want.channels = 2;
-        gb_want.samples = 2048;        // kích thước buffer SDL
+        gb_want.samples = 4096;        // kích thước buffer SDL
         gb_want.callback = fwr_open_audio_output_cb;
         gb_want.userdata = gb_in_astream; // buffer chuẩn hóa của bạn
-
+#if 0
         ret = SDL_OpenAudio(&gb_want, 0);
         spllog(1, "ret-SDL_OpenAudio: %d", ret);
         SDL_PauseAudio(0);           // start audio playback
+#else
+        SDL_AudioDeviceID dev = SDL_OpenAudioDevice(NULL, 0, &gb_want, &gb_have, 
+            0);
+        if(!dev) {
+            printf("SDL_OpenAudioDevice failed: %s\n", SDL_GetError());
+        }
+        SDL_PauseAudioDevice(dev, 0); // bật playback
+#endif
     } while(0);
 }
 /*+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+*/
