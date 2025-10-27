@@ -129,12 +129,8 @@ ffwr_gen_data_st *gb_tsplanVFrame;
 int scan_all_pmts_set;
 ffwr_araw_stream *gb_shared_astream;
 ffwr_araw_stream *gb_in_astream;
-<<<<<<< HEAD
 SDL_AudioSpec gb_want, gb_have;
-=======
-SDL_AudioSpec gb_want;
 char *gb_input_fmt;
->>>>>>> e45486f71b64a2f19908f18b9e8949eb2873d8a7
 /*+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+*/
 static void set_sdl_yuv_conversion_mode(AVFrame *frame);
 int ffwr_fill_vframe(FFWR_VFrame *dst, AVFrame *src);
@@ -309,7 +305,9 @@ int main(int argc, char *argv[])
 	snprintf(input.id_name, 100, "vk_window");
 	ret = spl_init_log_ext(&input);
 #ifndef UNIX_LINUX
-    if(argc > 1)
+    if(__argc  > 1) {
+        gb_input_fmt = __argv[1];
+    }
 #else
     if(argc > 1) {
         gb_input_fmt = argv[1];
