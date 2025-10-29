@@ -349,7 +349,10 @@ int main(int argc, char *argv[])
         spllog(4, "SDL_Init Error: %s\n", SDL_GetError());
         return 1;
     }
-
+    spllog(1, "SDL compiled version: %d.%d.%d\n",
+        SDL_MAJOR_VERSION,
+        SDL_MINOR_VERSION,
+        SDL_PATCHLEVEL);
     fwr_open_audio_output( 2000000);
 
     ret = pthread_create(
