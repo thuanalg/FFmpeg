@@ -289,6 +289,7 @@ int main(int argc, char *argv[])
 {	
 	int ret = 0;
 	SDL_SysWMinfo info = {0};
+    SDL_RendererInfo  info_render = {0};
 	SDL_Window *win = 0;
 	int running = 1;
 	SDL_Event e = {0};
@@ -379,7 +380,9 @@ int main(int argc, char *argv[])
 #else
     /*Wyland*/
     gb_sdlWindow = info.info.wl.egl_window;
-#endif    
+#endif  
+    
+    
     if (!win) {
         spllog(4, "SDL_CreateWindow Error: %s\n", SDL_GetError());
         SDL_Quit();
@@ -393,6 +396,8 @@ int main(int argc, char *argv[])
         SDL_Quit();
         return 1;
     }
+    SDL_GetRendererInfo(ren, &info_render);
+    spllog(1, "Renderer: %s", info_render.name);
     gb_dst_draw = av_frame_alloc();
 
     gb_dst_draw->width = 640;
@@ -519,7 +524,7 @@ void *demux_routine(void *arg) {
 
     av_frame_get_buffer(tmp, 32);
     
-
+    //SDL_CreateWindowFrom
 
     gb_instream.vframe->width = 640;
     gb_instream.vframe->height = 480;
