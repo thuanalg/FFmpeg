@@ -10,5 +10,6 @@ all:
 	gendef ${TARGET}.dll
 	dlltool -d ${TARGET}.def -l ${TARGET}.lib -D ${TARGET}.dll
 	mv ${TARGET}.* out
+	cp -f out/${TARGET}.lib out/${TARGET}.dll /d/zz/ffmpeg-demo
 clean:
 	rm -rf out/${TARGET}.*
